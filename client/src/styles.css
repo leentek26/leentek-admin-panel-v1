@@ -1,0 +1,65 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, "Noto Sans Arabic", sans-serif;
+}
+
+.id-mono {
+  font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.02em;
+}
+
+/* Primary Key — cyan; Display Code — amber.
+   These two utilities are used everywhere both IDs are rendered side-by-side. */
+.primary-id {
+  @apply id-mono text-cyan-400 bg-cyan-400/10 border border-cyan-400/30 px-2 py-0.5 rounded;
+}
+.display-code {
+  @apply id-mono text-amber-400 bg-amber-400/10 border border-amber-400/30 px-2 py-0.5 rounded;
+}
+
+.btn {
+  @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium
+         transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+}
+.btn-primary {
+  @apply btn bg-cyan-500 text-slate-950 hover:bg-cyan-400;
+}
+.btn-secondary {
+  @apply btn bg-slate-800 text-slate-100 hover:bg-slate-700 border border-slate-700;
+}
+.btn-danger {
+  @apply btn bg-rose-600 text-white hover:bg-rose-500;
+}
+
+.card {
+  @apply bg-slate-800/60 border border-slate-700 rounded-xl p-5;
+}
+
+.input {
+  @apply w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2
+         text-slate-100 placeholder:text-slate-500
+         focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500;
+}
+
+.label {
+  @apply text-xs uppercase tracking-wider text-slate-400 mb-1 block;
+}
+
+.table-th {
+  @apply text-left text-xs uppercase tracking-wider text-slate-400 font-medium px-4 py-2;
+}
+.table-td {
+  @apply px-4 py-3 border-t border-slate-800 text-sm;
+}
