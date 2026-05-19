@@ -2,6 +2,7 @@ const express = require('express');
 const Joi = require('joi');
 const db = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { checkPermission } = require('../middleware/checkPermission');
 const { audit } = require('../middleware/audit');
 const { generateLicenseId } = require('../utils/ids');
 const {
@@ -35,7 +36,7 @@ const generateSchema = Joi.object({
 router.use(requireAuth);
 
 // ─── LIST ────────────────────────────────────────────
-router.get('/', (req, res) => {
+router.get('/', checkPermission('licenses.view'), (req, res) => {
   const { customer_id, product_code, status } = req.query;
   const where = [];
   const params = [];
@@ -70,7 +71,7 @@ router.get('/', (req, res) => {
 });
 
 // ─── GET ONE ────────────────────────────────────────
-router.get('/:id', (req, res) => {
+router.get('/:id', checkPermission('licenses.view'), (req, res) => {
   const row = db
     .prepare(
       `SELECT l.*, c.display_code, c.name AS customer_name, c.company AS customer_company
@@ -83,7 +84,7 @@ router.get('/:id', (req, res) => {
 });
 
 // ─── GENERATE — binds to customer.id (Primary Key) ───
-router.post('/generate', (req, res) => {
+router.post('/generate', checkPermission('licenses.generate'), (req, res) => {
   const { error, value } = generateSchema.validate(req.body);
   if (error) return res.status(400).json({ error: error.message });
 
@@ -140,7 +141,7 @@ router.post('/generate', (req, res) => {
 });
 
 // ─── REVOKE ──────────────────────────────────────────
-router.post('/:id/revoke', (req, res) => {
+router.post('/:id/revoke', checkPermission('licenses.revoke'), (req, res) => {
   const existing = db.prepare('SELECT id, status FROM licenses WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'not found' });
   if (existing.status === 'revoked')
@@ -151,7 +152,7 @@ router.post('/:id/revoke', (req, res) => {
 });
 
 // ─── ACTIVATE — increments activations, enforces limit ──
-router.post('/:id/activate', (req, res) => {
+router.post('/:id/activate', checkPermission('licenses.generate'), (req, res) => {
   const lic = db.prepare('SELECT * FROM licenses WHERE id = ?').get(req.params.id);
   if (!lic) return res.status(404).json({ error: 'not found' });
   if (lic.status !== 'active') return res.status(409).json({ error: `license is ${lic.status}` });
@@ -166,7 +167,7 @@ router.post('/:id/activate', (req, res) => {
 });
 
 // ─── DONGLE FILE ─────────────────────────────────────
-router.get('/:id/dongle', (req, res) => {
+router.get('/:id/dongle', checkPermission('licenses.export'), (req, res) => {
   const lic = db.prepare('SELECT * FROM licenses WHERE id = ?').get(req.params.id);
   if (!lic) return res.status(404).json({ error: 'not found' });
   res.setHeader('Content-Type', 'application/json');
@@ -178,7 +179,7 @@ router.get('/:id/dongle', (req, res) => {
 });
 
 // ─── CSV EXPORT ──────────────────────────────────────
-router.get('/export/csv', (req, res) => {
+router.get('/export/csv', checkPermission('licenses.export'), (req, res) => {
   const rows = db
     .prepare(
       `SELECT l.id, l.customer_id, c.display_code, c.name, c.company,

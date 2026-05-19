@@ -2,6 +2,7 @@ const express = require('express');
 const Joi = require('joi');
 const db = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { checkPermission } = require('../middleware/checkPermission');
 const { audit } = require('../middleware/audit');
 const { generatePrimaryId } = require('../utils/ids');
 const {
@@ -50,7 +51,7 @@ const updateSchema = Joi.object({
 router.use(requireAuth);
 
 // ─── LIST ────────────────────────────────────────────
-router.get('/', (req, res) => {
+router.get('/', checkPermission('customers.view'), (req, res) => {
   const { search, status, product_code, country_code } = req.query;
   const where = [];
   const params = [];
@@ -81,7 +82,7 @@ router.get('/', (req, res) => {
 });
 
 // ─── GET ONE (by primary id OR display_code) ─────────
-router.get('/:id', (req, res) => {
+router.get('/:id', checkPermission('customers.view'), (req, res) => {
   const { id } = req.params;
   const row = db
     .prepare('SELECT * FROM customers WHERE id = ? OR display_code = ?')
@@ -91,7 +92,7 @@ router.get('/:id', (req, res) => {
 });
 
 // ─── CREATE ─────────────────────────────────────────
-router.post('/', (req, res) => {
+router.post('/', checkPermission('customers.create'), (req, res) => {
   const { error, value } = createSchema.validate(req.body);
   if (error) return res.status(400).json({ error: error.message });
 
@@ -137,7 +138,7 @@ router.post('/', (req, res) => {
 });
 
 // ─── UPDATE — regenerates display_code if country/product changed ───
-router.put('/:id', (req, res) => {
+router.put('/:id', checkPermission('customers.edit'), (req, res) => {
   const { error, value } = updateSchema.validate(req.body);
   if (error) return res.status(400).json({ error: error.message });
 
@@ -198,7 +199,7 @@ router.put('/:id', (req, res) => {
 });
 
 // ─── SOFT DELETE ──────────────────────────────────────
-router.delete('/:id', (req, res) => {
+router.delete('/:id', checkPermission('customers.delete'), (req, res) => {
   const existing = db
     .prepare('SELECT id FROM customers WHERE id = ? OR display_code = ?')
     .get(req.params.id, req.params.id);

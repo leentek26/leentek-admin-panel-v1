@@ -1,11 +1,22 @@
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
-import { api, post, setAccessToken } from './api';
+import { api, get, post, setAccessToken } from './api';
 
 const AuthCtx = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [admin, setAdmin] = useState(null);
+  const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const refreshMe = useCallback(async () => {
+    try {
+      const me = await get('/api/auth/me');
+      setUser(me);
+      return me;
+    } catch {
+      setUser(null);
+      return null;
+    }
+  }, []);
 
   // On mount, try to refresh — gives us a session if the httpOnly cookie is still valid
   useEffect(() => {
@@ -15,9 +26,7 @@ export function AuthProvider({ children }) {
         if (r.ok) {
           const { accessToken } = await r.json();
           setAccessToken(accessToken);
-          // crude decode — only used for email display; trust on server.
-          const payload = JSON.parse(atob(accessToken.split('.')[1]));
-          setAdmin({ email: payload.email });
+          await refreshMe();
         }
       } catch {
         /* not logged in */
@@ -25,12 +34,12 @@ export function AuthProvider({ children }) {
         setLoading(false);
       }
     })();
-  }, []);
+  }, [refreshMe]);
 
   const login = useCallback(async (email, password) => {
     const data = await post('/api/auth/login', { email, password });
     setAccessToken(data.accessToken);
-    setAdmin(data.admin);
+    setUser(data.user);
     return data;
   }, []);
 
@@ -41,11 +50,24 @@ export function AuthProvider({ children }) {
       /* ignore */
     }
     setAccessToken(null);
-    setAdmin(null);
+    setUser(null);
   }, []);
 
+  const hasPermission = useCallback(
+    (code) => {
+      if (!user) return false;
+      if (user.role_id === 'role-superadmin') return true;
+      return Array.isArray(user.permissions) && user.permissions.includes(code);
+    },
+    [user]
+  );
+
   return (
-    <AuthCtx.Provider value={{ admin, loading, login, logout }}>{children}</AuthCtx.Provider>
+    <AuthCtx.Provider
+      value={{ user, admin: user, loading, login, logout, hasPermission, refreshMe }}
+    >
+      {children}
+    </AuthCtx.Provider>
   );
 }
 

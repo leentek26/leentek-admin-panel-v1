@@ -1,12 +1,13 @@
 const express = require('express');
 const db = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { checkPermission } = require('../middleware/checkPermission');
 
 const router = express.Router();
 
 router.use(requireAuth);
 
-router.get('/', (req, res) => {
+router.get('/', checkPermission('audit.view'), (req, res) => {
   const { action, entity_type, from, to } = req.query;
   const where = [];
   const params = [];
@@ -33,8 +34,8 @@ router.get('/', (req, res) => {
   res.json(db.prepare(sql).all(...params));
 });
 
-// Dashboard stats — recent counts + activity
-router.get('/stats', (_req, res) => {
+// Dashboard stats — counts for everyone; recent activity only for audit.view holders.
+router.get('/stats', (req, res) => {
   const customers = db.prepare("SELECT COUNT(*) AS c FROM customers WHERE status != 'inactive'").get().c;
   const licenses = db.prepare("SELECT COUNT(*) AS c FROM licenses WHERE status = 'active'").get().c;
   const revoked = db.prepare("SELECT COUNT(*) AS c FROM licenses WHERE status = 'revoked'").get().c;
@@ -47,9 +48,14 @@ router.get('/stats', (_req, res) => {
   const byTier = db
     .prepare(`SELECT tier, COUNT(*) AS c FROM licenses WHERE status='active' GROUP BY tier`)
     .all();
-  const recent = db
-    .prepare(`SELECT * FROM audit_log ORDER BY timestamp DESC LIMIT 20`)
-    .all();
+
+  const canViewAudit =
+    req.user?.role === 'role-superadmin' ||
+    (req.user?.permissions || []).includes('audit.view');
+  const recent = canViewAudit
+    ? db.prepare(`SELECT * FROM audit_log ORDER BY timestamp DESC LIMIT 20`).all()
+    : [];
+
   res.json({ customers, licenses, revoked, apikeys, byProduct, byTier, recent });
 });
 

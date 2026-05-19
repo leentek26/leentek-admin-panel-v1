@@ -15,6 +15,8 @@ const licenseRoutes = require('./routes/licenses');
 const verifyRoutes = require('./routes/verify');
 const apikeyRoutes = require('./routes/apikeys');
 const auditRoutes = require('./routes/audit');
+const employeeRoutes = require('./routes/employees');
+const roleRoutes = require('./routes/roles');
 
 const PORT = Number(process.env.PORT) || 3001;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || 'http://localhost:5173';
@@ -62,6 +64,8 @@ app.use('/api/customers', adminLimiter, customerRoutes);
 app.use('/api/licenses', adminLimiter, licenseRoutes);
 app.use('/api/apikeys', adminLimiter, apikeyRoutes);
 app.use('/api/audit', adminLimiter, auditRoutes);
+app.use('/api/employees', adminLimiter, employeeRoutes);
+app.use('/api/roles', adminLimiter, roleRoutes);
 app.use('/api/verify', verifyRoutes); // verify has its own 30/min limiter inside
 
 // 404

@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const Joi = require('joi');
 const db = require('../db');
 const { requireAuth } = require('../middleware/auth');
+const { checkPermission } = require('../middleware/checkPermission');
 const { audit } = require('../middleware/audit');
 const { sha256 } = require('../utils/ids');
 
@@ -15,7 +16,7 @@ const createSchema = Joi.object({
 
 router.use(requireAuth);
 
-router.get('/', (_req, res) => {
+router.get('/', checkPermission('apikeys.view'), (_req, res) => {
   const rows = db
     .prepare(
       'SELECT id, product_code, label, active, created_at FROM api_keys ORDER BY created_at DESC'
@@ -24,7 +25,7 @@ router.get('/', (_req, res) => {
   res.json(rows);
 });
 
-router.post('/', (req, res) => {
+router.post('/', checkPermission('apikeys.manage'), (req, res) => {
   const { error, value } = createSchema.validate(req.body);
   if (error) return res.status(400).json({ error: error.message });
 
@@ -48,7 +49,7 @@ router.post('/', (req, res) => {
   });
 });
 
-router.delete('/:id', (req, res) => {
+router.delete('/:id', checkPermission('apikeys.manage'), (req, res) => {
   const id = Number(req.params.id);
   const result = db.prepare('UPDATE api_keys SET active = 0 WHERE id = ?').run(id);
   if (result.changes === 0) return res.status(404).json({ error: 'not found' });

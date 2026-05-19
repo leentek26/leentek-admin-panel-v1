@@ -10,16 +10,19 @@ import LicensesPage from './pages/LicensesPage.jsx';
 import VerifyPage from './pages/VerifyPage.jsx';
 import ApiKeysPage from './pages/ApiKeysPage.jsx';
 import AuditLogPage from './pages/AuditLogPage.jsx';
+import EmployeesPage from './pages/EmployeesPage.jsx';
+import RolesPage from './pages/RolesPage.jsx';
+import SettingsPage from './pages/SettingsPage.jsx';
 
 function RequireAuth({ children }) {
-  const { admin, loading } = useAuth();
+  const { user, loading } = useAuth();
   if (loading)
     return (
       <div className="min-h-screen flex items-center justify-center text-slate-400">
         Loading…
       </div>
     );
-  if (!admin) return <Navigate to="/login" replace />;
+  if (!user) return <Navigate to="/login" replace />;
   return children;
 }
 
@@ -43,6 +46,9 @@ export default function App() {
         <Route path="verify" element={<VerifyPage />} />
         <Route path="apikeys" element={<ApiKeysPage />} />
         <Route path="audit" element={<AuditLogPage />} />
+        <Route path="employees" element={<EmployeesPage />} />
+        <Route path="roles" element={<RolesPage />} />
+        <Route path="settings" element={<SettingsPage />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
