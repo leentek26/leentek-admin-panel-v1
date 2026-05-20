@@ -11,11 +11,16 @@ function audit(req, action, entityType, entityId, details = {}) {
     .split(',')[0]
     .trim();
   const ua = (req.headers['user-agent'] || '').toString().slice(0, 500);
+  // Auto-stamp actor (employee performing the action). Caller-supplied actor_id wins
+  // if they passed one explicitly — but normally we read it off req.user.
+  const enriched = req.user?.sub
+    ? { actor_id: req.user.sub, ...details }
+    : details;
   stmt.run(
     action,
     entityType,
     entityId ? String(entityId) : null,
-    JSON.stringify(details),
+    JSON.stringify(enriched),
     ip,
     ua
   );

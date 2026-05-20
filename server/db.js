@@ -82,6 +82,7 @@ CREATE TABLE IF NOT EXISTS roles (
   name_ar TEXT NOT NULL,
   description TEXT,
   is_system INTEGER DEFAULT 0,
+  role_level INTEGER DEFAULT 0,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -144,13 +145,13 @@ CREATE INDEX IF NOT EXISTS idx_sessions_expires ON employee_sessions(expires_at)
 
 db.exec(SCHEMA);
 
-// ─── RBAC seed: roles ─────────────────────────────────
+// ─── RBAC seed: roles (id, name, name_ar, description, is_system, role_level) ───
 const ROLE_SEEDS = [
-  ['role-superadmin', 'Super Admin', 'مدير عام', 'Full unrestricted access to all features', 1],
-  ['role-admin', 'Admin', 'مدير', 'Manage customers, licenses, and employees', 1],
-  ['role-license-mgr', 'License Manager', 'مدير تراخيص', 'Generate, revoke, and verify licenses only', 1],
-  ['role-support', 'Support', 'دعم فني', 'View customers and verify licenses only', 1],
-  ['role-viewer', 'Viewer', 'مشاهد', 'View dashboard and reports only', 1],
+  ['role-superadmin', 'Super Admin', 'مدير عام', 'Full unrestricted access to all features', 1, 100],
+  ['role-admin', 'Admin', 'مدير', 'Manage customers, licenses, and employees', 1, 80],
+  ['role-license-mgr', 'License Manager', 'مدير تراخيص', 'Generate, revoke, and verify licenses only', 1, 60],
+  ['role-support', 'Support', 'دعم فني', 'View customers and verify licenses only', 1, 40],
+  ['role-viewer', 'Viewer', 'مشاهد', 'View dashboard and reports only', 1, 20],
 ];
 
 // ─── RBAC seed: permissions ───────────────────────────
@@ -194,13 +195,26 @@ const ROLE_PERMISSION_MAP = {
   'role-viewer': ['customers.view', 'licenses.view', 'audit.view'],
 };
 
+function ensureRoleLevelColumn() {
+  // Idempotent migration: SQLite has no IF NOT EXISTS for ADD COLUMN.
+  const cols = db.prepare('PRAGMA table_info(roles)').all().map((c) => c.name);
+  if (!cols.includes('role_level')) {
+    db.exec('ALTER TABLE roles ADD COLUMN role_level INTEGER DEFAULT 0');
+    logger.info('migration: added roles.role_level');
+  }
+}
+
 function seedRBAC() {
+  ensureRoleLevelColumn();
+
   const roleCount = db.prepare('SELECT COUNT(*) AS c FROM roles').get().c;
   const permCount = db.prepare('SELECT COUNT(*) AS c FROM permissions').get().c;
 
   const insertRole = db.prepare(
-    'INSERT OR IGNORE INTO roles (id, name, name_ar, description, is_system) VALUES (?, ?, ?, ?, ?)'
+    'INSERT OR IGNORE INTO roles (id, name, name_ar, description, is_system, role_level) VALUES (?, ?, ?, ?, ?, ?)'
   );
+  // Keep canonical levels in sync on every boot — even for DBs seeded before the column existed.
+  const updateRoleLevel = db.prepare('UPDATE roles SET role_level = ? WHERE id = ?');
   const insertPerm = db.prepare(
     'INSERT OR IGNORE INTO permissions (id, code, name, name_ar, category, category_ar) VALUES (?, ?, ?, ?, ?, ?)'
   );
@@ -211,7 +225,11 @@ function seedRBAC() {
     db.prepare('SELECT id FROM permissions WHERE code = ?').get(code)?.id;
 
   const trx = db.transaction(() => {
-    for (const r of ROLE_SEEDS) insertRole.run(...r);
+    for (const r of ROLE_SEEDS) {
+      insertRole.run(...r);
+      // r[0] = id, r[5] = role_level
+      updateRoleLevel.run(r[5], r[0]);
+    }
     for (const p of PERMISSION_SEEDS) insertPerm.run(...p);
     for (const [roleId, codes] of Object.entries(ROLE_PERMISSION_MAP)) {
       for (const code of codes) {

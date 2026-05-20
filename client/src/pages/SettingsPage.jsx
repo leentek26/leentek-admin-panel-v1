@@ -2,9 +2,11 @@ import { useEffect, useState } from 'react';
 import { get, post, del } from '../api';
 import { useAuth } from '../auth.jsx';
 
+const ADMIN_ROLES = new Set(['role-superadmin', 'role-admin']);
+
 export default function SettingsPage() {
   const { user, hasPermission, refreshMe } = useAuth();
-  const [profile, setProfile] = useState({ name: '', email: '' });
+  const [profile, setProfile] = useState({ name: '', phone: '' });
   const [pwd, setPwd] = useState({ current_password: '', new_password: '' });
   const [profileMsg, setProfileMsg] = useState(null);
   const [pwdMsg, setPwdMsg] = useState(null);
@@ -12,10 +14,13 @@ export default function SettingsPage() {
   const [sessErr, setSessErr] = useState('');
 
   const isSuper = user?.role_id === 'role-superadmin';
+  const isAdmin = ADMIN_ROLES.has(user?.role_id);
   const canManageSettings = hasPermission('settings.manage');
 
   useEffect(() => {
-    if (user) setProfile({ name: user.name, email: user.email });
+    if (user) {
+      setProfile({ name: user.name || '', phone: user.phone || '' });
+    }
   }, [user]);
 
   async function loadSessions() {
@@ -76,7 +81,13 @@ export default function SettingsPage() {
       </div>
 
       <section className="card space-y-4">
-        <div className="text-lg font-semibold">Profile · الملف الشخصي</div>
+        <div>
+          <div className="text-lg font-semibold">Profile · الملف الشخصي</div>
+          <div className="text-xs text-slate-400">
+            You can update your display name and phone. Email/login and password are managed by
+            an administrator.
+          </div>
+        </div>
         <form onSubmit={saveProfile} className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="label">Name · الاسم</label>
@@ -88,14 +99,17 @@ export default function SettingsPage() {
             />
           </div>
           <div>
-            <label className="label">Email · البريد</label>
+            <label className="label">Phone · الهاتف</label>
             <input
               className="input"
-              type="email"
-              required
-              value={profile.email}
-              onChange={(e) => setProfile({ ...profile, email: e.target.value })}
+              value={profile.phone}
+              onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
             />
+          </div>
+          {/* Email is shown read-only for reference; cannot be edited here. */}
+          <div className="md:col-span-2">
+            <label className="label">Email / login (read-only)</label>
+            <input className="input opacity-70" value={user?.email || ''} disabled readOnly />
           </div>
           <div className="md:col-span-2 flex items-center gap-4">
             <button className="btn-primary" type="submit">
@@ -114,45 +128,60 @@ export default function SettingsPage() {
         </form>
       </section>
 
-      <section className="card space-y-4">
-        <div className="text-lg font-semibold">Change password · تغيير كلمة المرور</div>
-        <form onSubmit={changePassword} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {isAdmin ? (
+        <section className="card space-y-4">
           <div>
-            <label className="label">Current password</label>
-            <input
-              className="input"
-              type="password"
-              required
-              value={pwd.current_password}
-              onChange={(e) => setPwd({ ...pwd, current_password: e.target.value })}
-            />
+            <div className="text-lg font-semibold">Change password · تغيير كلمة المرور</div>
+            <div className="text-xs text-slate-400">
+              Only administrators can change their own password. For other employees, ask an admin
+              to reset it from the Employees page.
+            </div>
           </div>
-          <div>
-            <label className="label">New password (min 8, Aa1)</label>
-            <input
-              className="input"
-              type="password"
-              required
-              value={pwd.new_password}
-              onChange={(e) => setPwd({ ...pwd, new_password: e.target.value })}
-            />
+          <form onSubmit={changePassword} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="label">Current password</label>
+              <input
+                className="input"
+                type="password"
+                required
+                value={pwd.current_password}
+                onChange={(e) => setPwd({ ...pwd, current_password: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="label">New password (min 8, Aa1)</label>
+              <input
+                className="input"
+                type="password"
+                required
+                value={pwd.new_password}
+                onChange={(e) => setPwd({ ...pwd, new_password: e.target.value })}
+              />
+            </div>
+            <div className="md:col-span-2 flex items-center gap-4">
+              <button className="btn-primary" type="submit">
+                Change password
+              </button>
+              {pwdMsg && (
+                <span
+                  className={
+                    pwdMsg.kind === 'ok' ? 'text-emerald-400 text-sm' : 'text-rose-400 text-sm'
+                  }
+                >
+                  {pwdMsg.text}
+                </span>
+              )}
+            </div>
+          </form>
+        </section>
+      ) : (
+        <section className="card border-slate-700/60">
+          <div className="text-sm text-slate-300">
+            <span className="font-semibold text-slate-100">Password & login</span> — managed by an
+            administrator. Need a password reset? Ask a Super Admin or Admin.
           </div>
-          <div className="md:col-span-2 flex items-center gap-4">
-            <button className="btn-primary" type="submit">
-              Change password
-            </button>
-            {pwdMsg && (
-              <span
-                className={
-                  pwdMsg.kind === 'ok' ? 'text-emerald-400 text-sm' : 'text-rose-400 text-sm'
-                }
-              >
-                {pwdMsg.text}
-              </span>
-            )}
-          </div>
-        </form>
-      </section>
+        </section>
+      )}
 
       {canManageSettings && (
         <section className="card space-y-4">
@@ -222,8 +251,8 @@ export default function SettingsPage() {
             Super Admin · مدير عام
           </div>
           <div className="text-sm text-slate-300">
-            This account cannot be deleted or suspended. Use the form above to change its email or
-            password.
+            This account cannot be deleted or suspended. Change your own password above; reset
+            another employee&apos;s from the Employees page.
           </div>
         </section>
       )}

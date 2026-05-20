@@ -51,12 +51,17 @@ function nextEmployeeCode() {
   return 'EMP-' + String(last + 1).padStart(4, '0');
 }
 
+function roleLevelOf(roleId) {
+  return db.prepare('SELECT role_level FROM roles WHERE id = ?').get(roleId)?.role_level ?? 0;
+}
+
 function loadEmployeeRow(id) {
   return db
     .prepare(
       `SELECT e.id, e.employee_code, e.name, e.email, e.phone, e.role_id,
               e.department, e.status, e.last_login, e.created_at, e.updated_at,
-              r.name AS role_name, r.name_ar AS role_name_ar, r.is_system AS role_is_system
+              r.name AS role_name, r.name_ar AS role_name_ar,
+              r.is_system AS role_is_system, r.role_level AS role_level
          FROM employees e
          LEFT JOIN roles r ON r.id = e.role_id
         WHERE e.id = ?`
@@ -72,7 +77,7 @@ router.get('/', checkPermission('employees.view'), (_req, res) => {
     .prepare(
       `SELECT e.id, e.employee_code, e.name, e.email, e.phone, e.role_id,
               e.department, e.status, e.last_login, e.created_at,
-              r.name AS role_name, r.name_ar AS role_name_ar
+              r.name AS role_name, r.name_ar AS role_name_ar, r.role_level AS role_level
          FROM employees e
          LEFT JOIN roles r ON r.id = e.role_id
         ORDER BY e.created_at DESC`
@@ -93,12 +98,14 @@ router.post('/', checkPermission('employees.create'), (req, res) => {
   const { error, value } = createSchema.validate(req.body);
   if (error) return res.status(400).json({ error: error.message });
 
-  const role = db.prepare('SELECT id FROM roles WHERE id = ?').get(value.role_id);
+  const role = db.prepare('SELECT id, role_level FROM roles WHERE id = ?').get(value.role_id);
   if (!role) return res.status(400).json({ error: 'invalid role_id' });
 
-  // Only Super Admin can assign Super Admin role
-  if (value.role_id === 'role-superadmin' && req.user.role !== 'role-superadmin') {
-    return res.status(403).json({ error: 'only Super Admin can assign Super Admin role' });
+  // Cannot create an employee with a role at your level or above.
+  if (role.role_level >= req.user.role_level) {
+    return res.status(403).json({
+      error: 'cannot assign a role equal to or higher than your own',
+    });
   }
 
   const dup = db.prepare('SELECT id FROM employees WHERE email = ?').get(value.email);
@@ -141,17 +148,23 @@ router.put('/:id', checkPermission('employees.edit'), (req, res) => {
   const existing = db.prepare('SELECT * FROM employees WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'not found' });
 
-  // Cannot self-elevate
-  if (existing.id === req.user.sub && value.role_id && value.role_id !== existing.role_id) {
-    return res.status(403).json({ error: 'cannot change your own role' });
+  const targetLevel = roleLevelOf(existing.role_id);
+  // Cannot edit anyone at your level or above (this includes Super Admin and yourself).
+  if (targetLevel >= req.user.role_level) {
+    return res.status(403).json({
+      error: 'cannot edit a user at your level or above',
+    });
   }
-  // Only Super Admin can assign Super Admin role
-  if (value.role_id === 'role-superadmin' && req.user.role !== 'role-superadmin') {
-    return res.status(403).json({ error: 'only Super Admin can assign Super Admin role' });
-  }
-  // Non-Super-Admin cannot edit Super Admin user
-  if (existing.role_id === 'role-superadmin' && req.user.role !== 'role-superadmin') {
-    return res.status(403).json({ error: 'cannot modify Super Admin' });
+
+  // Cannot promote into a role >= your own level.
+  if (value.role_id) {
+    const role = db.prepare('SELECT id, role_level FROM roles WHERE id = ?').get(value.role_id);
+    if (!role) return res.status(400).json({ error: 'invalid role_id' });
+    if (role.role_level >= req.user.role_level) {
+      return res
+        .status(403)
+        .json({ error: 'cannot assign a role equal to or higher than your own' });
+    }
   }
 
   if (value.email && value.email !== existing.email) {
@@ -159,11 +172,6 @@ router.put('/:id', checkPermission('employees.edit'), (req, res) => {
       .prepare('SELECT id FROM employees WHERE email = ? AND id != ?')
       .get(value.email, existing.id);
     if (dup) return res.status(409).json({ error: 'email already in use' });
-  }
-
-  if (value.role_id) {
-    const role = db.prepare('SELECT id FROM roles WHERE id = ?').get(value.role_id);
-    if (!role) return res.status(400).json({ error: 'invalid role_id' });
   }
 
   const merged = { ...existing, ...value };
@@ -182,20 +190,24 @@ router.put('/:id', checkPermission('employees.edit'), (req, res) => {
     existing.id
   );
 
-  audit(req, 'employee.update', 'employee', existing.id, { changed: Object.keys(value) });
+  audit(req, 'employee.update', 'employee', existing.id, {
+    changed: Object.keys(value),
+  });
   res.json(loadEmployeeRow(existing.id));
 });
 
 // ─── SUSPEND ─────────────────────────────────────────
 router.post('/:id/suspend', checkPermission('employees.delete'), (req, res) => {
-  const existing = db.prepare('SELECT id, role_id FROM employees WHERE id = ?').get(req.params.id);
+  const existing = db
+    .prepare('SELECT id, role_id FROM employees WHERE id = ?')
+    .get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'not found' });
   if (existing.id === req.user.sub) return res.status(403).json({ error: 'cannot suspend yourself' });
-  if (existing.role_id === 'role-superadmin')
-    return res.status(403).json({ error: 'cannot suspend Super Admin' });
+  if (roleLevelOf(existing.role_id) >= req.user.role_level) {
+    return res.status(403).json({ error: 'cannot suspend a user at your level or above' });
+  }
 
   db.prepare(`UPDATE employees SET status = 'suspended', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(existing.id);
-  // Kill all sessions for the suspended user
   db.prepare('DELETE FROM employee_sessions WHERE employee_id = ?').run(existing.id);
   audit(req, 'employee.suspend', 'employee', existing.id, {});
   res.json({ ok: true });
@@ -203,8 +215,13 @@ router.post('/:id/suspend', checkPermission('employees.delete'), (req, res) => {
 
 // ─── ACTIVATE ────────────────────────────────────────
 router.post('/:id/activate', checkPermission('employees.delete'), (req, res) => {
-  const existing = db.prepare('SELECT id FROM employees WHERE id = ?').get(req.params.id);
+  const existing = db
+    .prepare('SELECT id, role_id FROM employees WHERE id = ?')
+    .get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'not found' });
+  if (roleLevelOf(existing.role_id) >= req.user.role_level) {
+    return res.status(403).json({ error: 'cannot activate a user at your level or above' });
+  }
   db.prepare(
     `UPDATE employees SET status = 'active', login_attempts = 0, locked_until = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
   ).run(existing.id);
@@ -212,17 +229,28 @@ router.post('/:id/activate', checkPermission('employees.delete'), (req, res) => 
   res.json({ ok: true });
 });
 
-// ─── SOFT DELETE ─────────────────────────────────────
+// ─── HARD DELETE ─────────────────────────────────────
 router.delete('/:id', checkPermission('employees.delete'), (req, res) => {
-  const existing = db.prepare('SELECT id, role_id FROM employees WHERE id = ?').get(req.params.id);
+  const existing = db
+    .prepare('SELECT id, role_id, employee_code FROM employees WHERE id = ?')
+    .get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'not found' });
   if (existing.id === req.user.sub) return res.status(403).json({ error: 'cannot delete yourself' });
-  if (existing.role_id === 'role-superadmin')
-    return res.status(403).json({ error: 'cannot delete Super Admin' });
+  if (roleLevelOf(existing.role_id) >= req.user.role_level) {
+    return res.status(403).json({ error: 'cannot delete a user at your level or above' });
+  }
 
-  db.prepare(`UPDATE employees SET status = 'inactive', updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(existing.id);
-  db.prepare('DELETE FROM employee_sessions WHERE employee_id = ?').run(existing.id);
-  audit(req, 'employee.delete', 'employee', existing.id, {});
+  // Sessions have FK ON DELETE CASCADE so they'd go automatically, but be explicit.
+  const trx = db.transaction(() => {
+    db.prepare('DELETE FROM employee_sessions WHERE employee_id = ?').run(existing.id);
+    db.prepare('DELETE FROM employees WHERE id = ?').run(existing.id);
+  });
+  trx();
+
+  audit(req, 'employee.delete', 'employee', existing.id, {
+    hard_delete: true,
+    employee_code: existing.employee_code,
+  });
   res.json({ ok: true });
 });
 
@@ -231,17 +259,23 @@ router.post('/:id/reset-password', checkPermission('employees.edit'), (req, res)
   const { error, value } = resetPasswordSchema.validate(req.body);
   if (error) return res.status(400).json({ error: error.message });
 
-  const existing = db.prepare('SELECT id, role_id FROM employees WHERE id = ?').get(req.params.id);
+  const existing = db
+    .prepare('SELECT id, role_id FROM employees WHERE id = ?')
+    .get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'not found' });
-  if (existing.role_id === 'role-superadmin' && req.user.role !== 'role-superadmin')
-    return res.status(403).json({ error: 'cannot reset Super Admin password' });
+  if (roleLevelOf(existing.role_id) >= req.user.role_level) {
+    return res
+      .status(403)
+      .json({ error: 'cannot reset password of a user at your level or above' });
+  }
 
   const hash = bcrypt.hashSync(value.new_password, 12);
   db.prepare(
     `UPDATE employees SET password_hash = ?, login_attempts = 0, locked_until = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
   ).run(hash, existing.id);
+  // Password reset invalidates all sessions for the target employee.
   db.prepare('DELETE FROM employee_sessions WHERE employee_id = ?').run(existing.id);
-  audit(req, 'employee.reset_password', 'employee', existing.id, {});
+  audit(req, 'employee.password_reset', 'employee', existing.id, {});
   res.json({ ok: true });
 });
 

@@ -35,10 +35,16 @@ const changePasswordSchema = Joi.object({
     .required(),
 });
 
+// Self-service profile is name + phone only — email/login is a credential
+// and only an admin can change it via /api/employees/:id (PUT).
 const updateProfileSchema = Joi.object({
   name: Joi.string().min(1).max(120),
-  email: Joi.string().email({ tlds: { allow: false } }),
+  phone: Joi.string().max(40).allow('', null),
 }).min(1);
+
+// Only Super Admin and Admin can change passwords (their own or — via
+// /api/employees/:id/reset-password — anyone else's).
+const ADMIN_ROLES = new Set(['role-superadmin', 'role-admin']);
 
 const REFRESH_COOKIE = 'refreshToken';
 const refreshCookieOpts = {
@@ -51,15 +57,20 @@ const refreshCookieOpts = {
 
 function buildUserPayload(emp) {
   const ctx = loadEmployeeContext(emp.id);
-  const role = db.prepare('SELECT name, name_ar FROM roles WHERE id = ?').get(emp.role_id);
+  const role = db
+    .prepare('SELECT name, name_ar, role_level FROM roles WHERE id = ?')
+    .get(emp.role_id);
   return {
     id: emp.id,
     employee_code: emp.employee_code,
     name: emp.name,
     email: emp.email,
+    phone: emp.phone,
+    department: emp.department,
     role_id: emp.role_id,
     role_name: role?.name || null,
     role_name_ar: role?.name_ar || null,
+    role_level: role?.role_level ?? 0,
     permissions: ctx?.permissions || [],
   };
 }
@@ -189,8 +200,15 @@ router.get('/me', requireAuth, (req, res) => {
   res.json(buildUserPayload(emp));
 });
 
-// ─── CHANGE OWN PASSWORD ─────────────────────────────
+// ─── CHANGE OWN PASSWORD ─ Admin / Super Admin only ──
 router.post('/change-password', requireAuth, (req, res) => {
+  if (!ADMIN_ROLES.has(req.user.role)) {
+    audit(req, 'password.change.fail', 'employee', req.user.sub, { reason: 'not-admin' });
+    return res.status(403).json({
+      error: 'only an administrator can change passwords — ask one to reset yours',
+    });
+  }
+
   const { error, value } = changePasswordSchema.validate(req.body);
   if (error) return res.status(400).json({ error: error.message });
 
@@ -223,23 +241,17 @@ router.post('/change-password', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-// ─── UPDATE OWN PROFILE ──────────────────────────────
+// ─── UPDATE OWN PROFILE ─ name + phone only ──────────
 router.post('/update-profile', requireAuth, (req, res) => {
   const { error, value } = updateProfileSchema.validate(req.body);
   if (error) return res.status(400).json({ error: error.message });
 
-  if (value.email) {
-    const dup = db
-      .prepare('SELECT id FROM employees WHERE email = ? AND id != ?')
-      .get(value.email, req.user.sub);
-    if (dup) return res.status(409).json({ error: 'email already in use' });
-  }
-
   const emp = db.prepare('SELECT * FROM employees WHERE id = ?').get(req.user.sub);
+  if (!emp) return res.status(404).json({ error: 'not found' });
   const merged = { ...emp, ...value };
   db.prepare(
-    `UPDATE employees SET name = ?, email = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-  ).run(merged.name, merged.email, emp.id);
+    `UPDATE employees SET name = ?, phone = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`
+  ).run(merged.name, merged.phone, emp.id);
 
   audit(req, 'profile.update', 'employee', emp.id, { changed: Object.keys(value) });
   res.json(buildUserPayload({ ...emp, ...value }));

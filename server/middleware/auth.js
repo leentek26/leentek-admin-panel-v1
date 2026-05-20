@@ -36,6 +36,11 @@ function loadEmployeeContext(employeeId) {
   if (!emp) return null;
   if (emp.status !== 'active') return null;
 
+  const role = db
+    .prepare('SELECT role_level FROM roles WHERE id = ?')
+    .get(emp.role_id);
+  const role_level = role?.role_level ?? 0;
+
   const perms = db
     .prepare(
       `SELECT p.code
@@ -46,7 +51,7 @@ function loadEmployeeContext(employeeId) {
     .all(emp.role_id)
     .map((r) => r.code);
 
-  return { role: emp.role_id, permissions: perms, employee: emp };
+  return { role: emp.role_id, role_level, permissions: perms, employee: emp };
 }
 
 /** Express middleware — requires a valid Bearer access token. */
@@ -68,6 +73,7 @@ function requireAuth(req, res, next) {
   req.user = {
     ...claims,
     role: ctx.role,
+    role_level: ctx.role_level,
     permissions: ctx.permissions,
     employee: ctx.employee,
   };
