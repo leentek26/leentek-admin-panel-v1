@@ -2,18 +2,18 @@ import { useEffect, useMemo, useState } from 'react';
 import { get, post, put, del } from '../api';
 import { useAuth } from '../auth.jsx';
 
-const STATUS_COLORS = {
-  active: 'text-emerald-400',
-  suspended: 'text-amber-400',
-  inactive: 'text-slate-500',
+const STATUS_BADGE = {
+  active: 'badge-active',
+  suspended: 'badge-suspended',
+  inactive: 'badge-inactive',
 };
 
 const ROLE_BADGE_TONE = {
-  'role-superadmin': 'bg-amber-400/15 border-amber-400/40 text-amber-300',
-  'role-admin': 'bg-rose-400/15 border-rose-400/40 text-rose-300',
-  'role-license-mgr': 'bg-cyan-400/15 border-cyan-400/40 text-cyan-300',
-  'role-support': 'bg-emerald-400/15 border-emerald-400/40 text-emerald-300',
-  'role-viewer': 'bg-slate-400/15 border-slate-400/40 text-slate-300',
+  'role-superadmin': 'bg-brand-orange/15 border-brand-orange/40 text-brand-orange',
+  'role-admin': 'bg-brand-magenta/15 border-brand-magenta/40 text-brand-magenta',
+  'role-license-mgr': 'bg-brand-cyan/15 border-brand-cyan/40 text-brand-cyan',
+  'role-support': 'bg-brand-purple/30 border-brand-purple/50 text-ink-100',
+  'role-viewer': 'bg-ink-700/40 border-ink-700 text-ink-300',
 };
 
 const emptyForm = {
@@ -268,7 +268,7 @@ export default function EmployeesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Employees</h1>
-          <div className="text-sm text-slate-400">الموظفون</div>
+          <div className="text-sm text-ink-300">الموظفون</div>
         </div>
         {canCreate && (
           <button className="btn-primary" onClick={startNew}>
@@ -278,14 +278,14 @@ export default function EmployeesPage() {
       </div>
 
       {err && (
-        <div className="text-rose-300 text-sm bg-rose-500/10 border border-rose-500/30 rounded-lg px-3 py-2">
+        <div className="text-brand-red text-sm bg-brand-red/10 border border-brand-red/30 rounded-lg px-3 py-2">
           {err}
         </div>
       )}
 
       {editing && (
         <form onSubmit={save} className="card grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="md:col-span-2 text-sm font-semibold text-slate-200">
+          <div className="md:col-span-2 text-sm font-semibold text-ink-100">
             {editing === 'new' ? 'New employee · موظف جديد' : 'Edit employee · تعديل'}
           </div>
 
@@ -341,28 +341,28 @@ export default function EmployeesPage() {
               ))}
             </select>
             {selectedRole?.description && (
-              <div className="text-xs text-slate-400 mt-2 italic">{selectedRole.description}</div>
+              <div className="text-xs text-ink-300 mt-2 italic">{selectedRole.description}</div>
             )}
           </div>
 
           {selectedRolePerms && (
-            <div className="md:col-span-2 bg-slate-900/40 border border-slate-700 rounded-lg p-3">
-              <div className="text-xs uppercase tracking-wider text-slate-400 mb-2">
+            <div className="md:col-span-2 bg-page/40 border border-line rounded-lg p-3">
+              <div className="text-xs uppercase tracking-wider text-ink-300 mb-2">
                 Permissions granted by this role ({selectedRolePerms.length})
               </div>
               {selectedRolePerms.length === 0 ? (
-                <div className="text-sm text-slate-500">No permissions assigned</div>
+                <div className="text-sm text-ink-500">No permissions assigned</div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
                   {Object.entries(permsByCategory).map(([cat, group]) => (
                     <div key={cat}>
-                      <div className="text-xs text-cyan-400 mt-1">
+                      <div className="text-xs text-brand-cyan mt-1">
                         {cat} · {group.label_ar}
                       </div>
                       {group.items.map((p) => (
-                        <div key={p.id} className="text-sm text-slate-300 flex justify-between pl-2">
+                        <div key={p.id} className="text-sm text-ink-300 flex justify-between pl-2">
                           <span>{p.name}</span>
-                          <span className="text-xs text-slate-500">{p.name_ar}</span>
+                          <span className="text-xs text-ink-500">{p.name_ar}</span>
                         </div>
                       ))}
                     </div>
@@ -379,7 +379,7 @@ export default function EmployeesPage() {
                   <span className="label !mb-0">Password · كلمة المرور * (min 8, Aa1)</span>
                   <button
                     type="button"
-                    className="text-cyan-300 hover:underline text-[11px]"
+                    className="text-brand-cyan hover:underline text-[11px]"
                     onClick={() => {
                       const p = generatePassword(12);
                       setForm({ ...form, password: p, confirm_password: p });
@@ -410,7 +410,7 @@ export default function EmployeesPage() {
           )}
 
           <div className="md:col-span-2 flex items-center gap-6">
-            <span className="text-xs uppercase tracking-wider text-slate-400">
+            <span className="text-xs uppercase tracking-wider text-ink-300">
               Status · الحالة
             </span>
             {['active', 'suspended'].map((s) => (
@@ -422,7 +422,7 @@ export default function EmployeesPage() {
                   checked={form.status === s}
                   onChange={() => setForm({ ...form, status: s })}
                 />
-                <span className={s === 'active' ? 'text-emerald-400' : 'text-amber-400'}>{s}</span>
+                <span className={s === 'active' ? 'text-brand-cyan' : 'text-brand-orange'}>{s}</span>
               </label>
             ))}
           </div>
@@ -439,8 +439,8 @@ export default function EmployeesPage() {
       )}
 
       {resetForId && (
-        <form onSubmit={doReset} className="card border-amber-500/40 space-y-3">
-          <div className="text-sm font-semibold text-amber-300">
+        <form onSubmit={doReset} className="card border-brand-orange/40 space-y-3">
+          <div className="text-sm font-semibold text-brand-orange">
             Reset password · إعادة تعيين كلمة المرور
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -449,7 +449,7 @@ export default function EmployeesPage() {
                 <span className="label !mb-0">New password (min 8, Aa1)</span>
                 <button
                   type="button"
-                  className="text-cyan-300 hover:underline text-[11px]"
+                  className="text-brand-cyan hover:underline text-[11px]"
                   onClick={() => {
                     const p = generatePassword(12);
                     setResetPwd(p);
@@ -499,7 +499,7 @@ export default function EmployeesPage() {
 
       <div className="card p-0 overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-slate-900/60">
+          <thead className="bg-page/60">
             <tr>
               <th className="table-th">Code</th>
               <th className="table-th">Name</th>
@@ -513,26 +513,26 @@ export default function EmployeesPage() {
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.id} className="hover:bg-slate-800/40">
-                <td className="table-td font-mono text-cyan-300">{r.employee_code}</td>
+              <tr key={r.id} className="hover:bg-card/40">
+                <td className="table-td font-mono text-brand-cyan">{r.employee_code}</td>
                 <td className="table-td">{r.name}</td>
-                <td className="table-td text-slate-300">{r.email}</td>
+                <td className="table-td text-ink-300">{r.email}</td>
                 <td className="table-td">
                   <span
                     className={`id-mono text-[11px] px-2 py-0.5 rounded border ${
-                      ROLE_BADGE_TONE[r.role_id] || 'bg-slate-400/10 border-slate-700 text-slate-300'
+                      ROLE_BADGE_TONE[r.role_id] || 'bg-ink-300/10 border-line text-ink-300'
                     }`}
                   >
                     {r.role_name || r.role_id}
                   </span>
                 </td>
-                <td className="table-td text-slate-400 text-sm">{r.department || '—'}</td>
-                <td className={`table-td ${STATUS_COLORS[r.status]}`}>{r.status}</td>
-                <td className="table-td text-xs text-slate-400">{r.last_login || '—'}</td>
+                <td className="table-td text-ink-300 text-sm">{r.department || '—'}</td>
+                <td className="table-td"><span className={STATUS_BADGE[r.status] || 'badge-inactive'}>{r.status}</span></td>
+                <td className="table-td text-xs text-ink-300">{r.last_login || '—'}</td>
                 <td className="table-td text-right space-x-3 whitespace-nowrap">
                   {canEditRow(r) && (
                     <button
-                      className="text-cyan-300 hover:underline text-sm"
+                      className="text-brand-cyan hover:underline text-sm"
                       onClick={() => startEdit(r)}
                     >
                       Edit
@@ -540,7 +540,7 @@ export default function EmployeesPage() {
                   )}
                   {canResetRow(r) && (
                     <button
-                      className="text-amber-300 hover:underline text-sm"
+                      className="text-brand-orange hover:underline text-sm"
                       onClick={() => startReset(r)}
                     >
                       Reset pw
@@ -549,14 +549,14 @@ export default function EmployeesPage() {
                   {canSuspendRow(r) &&
                     (r.status === 'active' ? (
                       <button
-                        className="text-amber-400 hover:underline text-sm"
+                        className="text-brand-orange hover:underline text-sm"
                         onClick={() => suspend(r)}
                       >
                         Suspend
                       </button>
                     ) : (
                       <button
-                        className="text-emerald-400 hover:underline text-sm"
+                        className="text-brand-cyan hover:underline text-sm"
                         onClick={() => activate(r)}
                       >
                         Activate
@@ -564,7 +564,7 @@ export default function EmployeesPage() {
                     ))}
                   {canDeleteRow(r) && (
                     <button
-                      className="text-rose-400 hover:underline text-sm"
+                      className="text-brand-red hover:underline text-sm"
                       onClick={() => setDeleteTarget(r)}
                     >
                       Delete
@@ -575,7 +575,7 @@ export default function EmployeesPage() {
             ))}
             {rows.length === 0 && (
               <tr>
-                <td colSpan="8" className="table-td text-center text-slate-500 py-8">
+                <td colSpan="8" className="table-td text-center text-ink-500 py-8">
                   No employees yet · لا يوجد موظفون
                 </td>
               </tr>
@@ -586,16 +586,16 @@ export default function EmployeesPage() {
 
       {deleteTarget && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="card border-rose-500/40 max-w-md w-full">
-            <div className="text-lg font-semibold text-rose-300 mb-2">
+          <div className="card border-brand-red/40 max-w-md w-full">
+            <div className="text-lg font-semibold text-brand-red mb-2">
               Permanently delete employee?
             </div>
-            <div className="text-sm text-slate-300 mb-2">
+            <div className="text-sm text-ink-300 mb-2">
               Are you sure you want to permanently delete{' '}
-              <span className="font-semibold text-slate-100">{deleteTarget.name}</span>{' '}
-              <span className="font-mono text-cyan-300">({deleteTarget.employee_code})</span>?
+              <span className="font-semibold text-ink-100">{deleteTarget.name}</span>{' '}
+              <span className="font-mono text-brand-cyan">({deleteTarget.employee_code})</span>?
             </div>
-            <div className="text-xs text-amber-400 mb-4">
+            <div className="text-xs text-brand-orange mb-4">
               This is a hard delete — the record is removed from the database and cannot be
               recovered. All sessions for this employee will be terminated.
             </div>
@@ -613,19 +613,19 @@ export default function EmployeesPage() {
 
       {resetReveal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="card border-amber-500/40 max-w-md w-full">
-            <div className="text-lg font-semibold text-amber-300 mb-2">
+          <div className="card border-brand-orange/40 max-w-md w-full">
+            <div className="text-lg font-semibold text-brand-orange mb-2">
               Password reset · share it now
             </div>
-            <div className="text-sm text-slate-300 mb-3">
+            <div className="text-sm text-ink-300 mb-3">
               New password for{' '}
-              <span className="font-semibold text-slate-100">{resetReveal.name}</span> (
+              <span className="font-semibold text-ink-100">{resetReveal.name}</span> (
               {resetReveal.email}). This is the <strong>only</strong> time it will be shown.
             </div>
-            <div className="font-mono text-base bg-slate-950 border border-slate-700 rounded p-3 text-emerald-300 break-all select-all">
+            <div className="font-mono text-base bg-page border border-line rounded p-3 text-brand-cyan break-all select-all">
               {resetReveal.password}
             </div>
-            <div className="text-[11px] text-slate-500 mt-2">
+            <div className="text-[11px] text-ink-500 mt-2">
               The password is bcrypt-hashed on the server and never recoverable from there.
             </div>
             <div className="flex gap-3 justify-end mt-4">

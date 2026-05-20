@@ -28,11 +28,20 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4">
-      <div className="w-full max-w-md card">
-        <div className="text-center mb-6">
-          <div className="text-2xl font-bold text-cyan-400">Leentek</div>
-          <div className="text-sm text-slate-400">License Admin · لوحة الإدارة</div>
+    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
+      {/* Brand gradient halo behind the card */}
+      <div
+        aria-hidden
+        className="absolute inset-0 opacity-30 blur-3xl bg-brand-gradient pointer-events-none"
+      />
+      <div className="w-full max-w-md card relative z-10">
+        <div className="flex flex-col items-center mb-6">
+          <img
+            src="/logo.png"
+            alt="Leentek"
+            className="h-16 w-auto mb-3 drop-shadow-[0_0_18px_rgba(232,118,42,0.35)]"
+          />
+          <div className="text-sm text-ink-300">License Admin · لوحة الإدارة</div>
         </div>
 
         <form onSubmit={submit} className="space-y-4">
@@ -59,7 +68,7 @@ export default function LoginPage() {
             />
           </div>
           {err && (
-            <div className="text-sm bg-rose-500/10 border border-rose-500/30 text-rose-300 rounded-lg px-3 py-2">
+            <div className="text-sm bg-brand-red/10 border border-brand-red/40 text-brand-red rounded-lg px-3 py-2">
               {err}
             </div>
           )}
@@ -68,7 +77,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        <div className="mt-6 text-[11px] text-slate-500 text-center">
+        <div className="mt-6 text-[11px] text-ink-500 text-center">
           Default bootstrap admin uses ADMIN_EMAIL / ADMIN_PASSWORD from .env
         </div>
       </div>

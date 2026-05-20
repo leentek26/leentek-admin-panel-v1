@@ -18,7 +18,7 @@ function RequireAuth({ children }) {
   const { user, loading } = useAuth();
   if (loading)
     return (
-      <div className="min-h-screen flex items-center justify-center text-slate-400">
+      <div className="min-h-screen flex items-center justify-center text-ink-300">
         Loading…
       </div>
     );

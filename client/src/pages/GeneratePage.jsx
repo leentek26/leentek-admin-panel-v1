@@ -76,7 +76,7 @@ export default function GeneratePage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Generate license</h1>
-        <div className="text-sm text-slate-400">إصدار ترخيص</div>
+        <div className="text-sm text-ink-300">إصدار ترخيص</div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -97,13 +97,13 @@ export default function GeneratePage() {
               ))}
             </select>
             {selectedCustomer && (
-              <div className="mt-2 p-3 rounded-lg bg-slate-900/60 border border-cyan-500/30 text-xs space-y-1">
-                <div className="text-cyan-400 uppercase tracking-wider text-[10px]">
+              <div className="mt-2 p-3 rounded-lg bg-page/60 border border-brand-cyan/30 text-xs space-y-1">
+                <div className="text-brand-cyan uppercase tracking-wider text-[10px]">
                   License will bind to Primary Key · سيُربط بالمفتاح الأساسي
                 </div>
-                <div><span className="text-[10px] text-slate-500 mr-2">Primary</span><PrimaryId id={selectedCustomer.id} /></div>
-                <div><span className="text-[10px] text-slate-500 mr-2">Display</span><DisplayCode code={selectedCustomer.display_code} /></div>
-                <div className="text-slate-400">{selectedCustomer.name} — {selectedCustomer.company}</div>
+                <div><span className="text-[10px] text-ink-500 mr-2">Primary</span><PrimaryId id={selectedCustomer.id} /></div>
+                <div><span className="text-[10px] text-ink-500 mr-2">Display</span><DisplayCode code={selectedCustomer.display_code} /></div>
+                <div className="text-ink-300">{selectedCustomer.name} — {selectedCustomer.company}</div>
               </div>
             )}
           </div>
@@ -154,7 +154,7 @@ export default function GeneratePage() {
           </div>
 
           {err && (
-            <div className="text-sm bg-rose-500/10 border border-rose-500/30 text-rose-300 rounded-lg px-3 py-2">
+            <div className="text-sm bg-brand-red/10 border border-brand-red/30 text-brand-red rounded-lg px-3 py-2">
               {err}
             </div>
           )}
@@ -166,32 +166,32 @@ export default function GeneratePage() {
 
         <div className="space-y-4">
           {result ? (
-            <div className="card border-cyan-500/40">
-              <div className="text-xs uppercase tracking-wider text-cyan-400 mb-3">License issued · تم الإصدار</div>
+            <div className="card border-brand-cyan/40">
+              <div className="text-xs uppercase tracking-wider text-brand-cyan mb-3">License issued · تم الإصدار</div>
               <div className="space-y-3 text-sm">
                 <div>
-                  <div className="text-[10px] text-slate-500 mb-1">License ID</div>
+                  <div className="text-[10px] text-ink-500 mb-1">License ID</div>
                   <span className="primary-id">{result.id}</span>
                 </div>
                 <div>
-                  <div className="text-[10px] text-slate-500 mb-1">Bound to (Primary Key)</div>
+                  <div className="text-[10px] text-ink-500 mb-1">Bound to (Primary Key)</div>
                   <PrimaryId id={result.customer_id} />
                 </div>
                 <div>
-                  <div className="text-[10px] text-slate-500 mb-1">Customer display</div>
+                  <div className="text-[10px] text-ink-500 mb-1">Customer display</div>
                   <DisplayCode code={result.display_code} />
                 </div>
                 <div>
-                  <div className="text-[10px] text-slate-500 mb-1">License key</div>
-                  <div className="font-mono text-xs break-all bg-slate-900 border border-slate-700 rounded p-2 text-emerald-400">
+                  <div className="text-[10px] text-ink-500 mb-1">License key</div>
+                  <div className="font-mono text-xs break-all bg-page border border-line rounded p-2 text-brand-cyan">
                     {result.license_key}
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div><span className="text-slate-500">Tier</span> <span className="display-code">{result.tier}</span></div>
-                  <div><span className="text-slate-500">Dongle</span> <span className="display-code">{result.dongle_type}</span></div>
-                  <div><span className="text-slate-500">Expires</span> {result.expires_at}</div>
-                  <div><span className="text-slate-500">Activations</span> {result.activations}/{result.activation_limit}</div>
+                  <div><span className="text-ink-500">Tier</span> <span className="display-code">{result.tier}</span></div>
+                  <div><span className="text-ink-500">Dongle</span> <span className="display-code">{result.dongle_type}</span></div>
+                  <div><span className="text-ink-500">Expires</span> {result.expires_at}</div>
+                  <div><span className="text-ink-500">Activations</span> {result.activations}/{result.activation_limit}</div>
                 </div>
                 <div className="flex gap-2 pt-2">
                   <button className="btn-secondary flex-1" onClick={() => navigator.clipboard.writeText(result.license_key)}>
@@ -201,17 +201,17 @@ export default function GeneratePage() {
                     Download .lic
                   </button>
                 </div>
-                <Link className="block text-center text-xs text-cyan-400 hover:underline mt-2" to="/licenses">
+                <Link className="block text-center text-xs text-brand-cyan hover:underline mt-2" to="/licenses">
                   View all licenses →
                 </Link>
               </div>
             </div>
           ) : (
-            <div className="card text-sm text-slate-400 leading-relaxed">
-              <div className="text-cyan-400 font-semibold mb-2">Binding · الربط</div>
+            <div className="card text-sm text-ink-300 leading-relaxed">
+              <div className="text-brand-cyan font-semibold mb-2">Binding · الربط</div>
               The generated license will be cryptographically bound to the customer's
-              <strong className="text-cyan-400"> Primary Key</strong> — never to the Display Code.
-              The encrypted payload contains <code className="text-cyan-400">pid</code>, so if the
+              <strong className="text-brand-cyan"> Primary Key</strong> — never to the Display Code.
+              The encrypted payload contains <code className="text-brand-cyan">pid</code>, so if the
               Display Code is later regenerated, the license remains valid.
             </div>
           )}

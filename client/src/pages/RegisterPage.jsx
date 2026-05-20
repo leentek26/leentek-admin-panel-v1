@@ -85,7 +85,7 @@ export default function RegisterPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Register customer</h1>
-        <div className="text-sm text-slate-400">تسجيل عميل جديد</div>
+        <div className="text-sm text-ink-300">تسجيل عميل جديد</div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -142,7 +142,7 @@ export default function RegisterPage() {
           </div>
 
           {err && (
-            <div className="text-sm bg-rose-500/10 border border-rose-500/30 text-rose-300 rounded-lg px-3 py-2">
+            <div className="text-sm bg-brand-red/10 border border-brand-red/30 text-brand-red rounded-lg px-3 py-2">
               {err}
             </div>
           )}
@@ -163,33 +163,33 @@ export default function RegisterPage() {
 
         <div className="space-y-4">
           <div className="card">
-            <div className="text-xs uppercase tracking-wider text-slate-400 mb-2">Live preview · معاينة مباشرة</div>
+            <div className="text-xs uppercase tracking-wider text-ink-300 mb-2">Live preview · معاينة مباشرة</div>
             <div className="space-y-3">
               <div>
-                <div className="text-[10px] text-slate-500 mb-1">Primary Key (assigned on save · يُنشأ عند الحفظ)</div>
+                <div className="text-[10px] text-ink-500 mb-1">Primary Key (assigned on save · يُنشأ عند الحفظ)</div>
                 <PrimaryId id={previewPrimary} />
               </div>
               <div>
-                <div className="text-[10px] text-slate-500 mb-1">Display Code (next available · المتاح التالي)</div>
+                <div className="text-[10px] text-ink-500 mb-1">Display Code (next available · المتاح التالي)</div>
                 <DisplayCode code={previewDisplay} />
               </div>
             </div>
-            <div className="mt-4 text-[11px] text-slate-500 leading-relaxed">
-              <span className="text-cyan-400">Cyan</span> = opaque <strong>Primary Key</strong> — immutable, used by all foreign keys + license encryption.<br />
-              <span className="text-amber-400">Amber</span> = <strong>Display Code</strong> — human-readable, regenerated if country/product change.
+            <div className="mt-4 text-[11px] text-ink-500 leading-relaxed">
+              <span className="text-brand-cyan">Cyan</span> = opaque <strong>Primary Key</strong> — immutable, used by all foreign keys + license encryption.<br />
+              <span className="text-brand-orange">Amber</span> = <strong>Display Code</strong> — human-readable, regenerated if country/product change.
             </div>
           </div>
 
           {result && (
-            <div className="card border-cyan-500/40">
-              <div className="text-xs uppercase tracking-wider text-cyan-400 mb-2">Created · تم الإنشاء</div>
+            <div className="card border-brand-cyan/40">
+              <div className="text-xs uppercase tracking-wider text-brand-cyan mb-2">Created · تم الإنشاء</div>
               <div className="space-y-2">
                 <div>
-                  <div className="text-[10px] text-slate-500 mb-1">Primary Key</div>
+                  <div className="text-[10px] text-ink-500 mb-1">Primary Key</div>
                   <PrimaryId id={result.id} />
                 </div>
                 <div>
-                  <div className="text-[10px] text-slate-500 mb-1">Display Code</div>
+                  <div className="text-[10px] text-ink-500 mb-1">Display Code</div>
                   <DisplayCode code={result.display_code} />
                 </div>
               </div>

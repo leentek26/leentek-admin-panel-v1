@@ -20,46 +20,63 @@ body {
   letter-spacing: 0.02em;
 }
 
-/* Primary Key — cyan; Display Code — amber.
-   These two utilities are used everywhere both IDs are rendered side-by-side. */
+/* ─── Hybrid ID badges ──────────────────────────────────
+   Primary Key — cyan (immutable, machine identity)
+   Display Code — orange (human, brand-aligned) */
 .primary-id {
-  @apply id-mono text-cyan-400 bg-cyan-400/10 border border-cyan-400/30 px-2 py-0.5 rounded;
+  @apply id-mono text-brand-cyan bg-brand-cyan/10 border border-brand-cyan/30 px-2 py-0.5 rounded;
 }
 .display-code {
-  @apply id-mono text-amber-400 bg-amber-400/10 border border-amber-400/30 px-2 py-0.5 rounded;
+  @apply id-mono text-brand-orange bg-brand-orange/10 border border-brand-orange/30 px-2 py-0.5 rounded;
 }
 
+/* ─── Buttons ───────────────────────────────────────────
+   Primary uses the brand gradient. Hover brightens it. */
 .btn {
   @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium
-         transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+         transition-all disabled:opacity-50 disabled:cursor-not-allowed;
 }
 .btn-primary {
-  @apply btn bg-cyan-500 text-slate-950 hover:bg-cyan-400;
+  @apply btn text-white bg-brand-btn hover:bg-brand-btn-hover hover:shadow-glow;
 }
 .btn-secondary {
-  @apply btn bg-slate-800 text-slate-100 hover:bg-slate-700 border border-slate-700;
+  @apply btn bg-transparent text-ink-100 border border-line hover:border-brand-orange/60 hover:text-brand-orange;
 }
 .btn-danger {
-  @apply btn bg-rose-600 text-white hover:bg-rose-500;
+  @apply btn bg-brand-red text-white hover:brightness-110;
 }
 
+/* ─── Surfaces ──────────────────────────────────────────
+   Cards sit on the page surface (#0C0C0C) and use #161616. */
 .card {
-  @apply bg-slate-800/60 border border-slate-700 rounded-xl p-5;
+  @apply bg-card border border-line rounded-xl p-5;
 }
 
 .input {
-  @apply w-full bg-slate-900 border border-slate-700 rounded-lg px-3 py-2
-         text-slate-100 placeholder:text-slate-500
-         focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500;
+  @apply w-full bg-page border border-line rounded-lg px-3 py-2
+         text-ink-100 placeholder:text-ink-500
+         focus:outline-none focus:border-brand-orange focus:ring-2 focus:ring-brand-orange/40;
 }
 
 .label {
-  @apply text-xs uppercase tracking-wider text-slate-400 mb-1 block;
+  @apply text-xs uppercase tracking-wider text-ink-300 mb-1 block;
 }
 
 .table-th {
-  @apply text-left text-xs uppercase tracking-wider text-slate-400 font-medium px-4 py-2;
+  @apply text-left text-xs uppercase tracking-wider text-ink-300 font-medium px-4 py-2;
 }
 .table-td {
-  @apply px-4 py-3 border-t border-slate-800 text-sm;
+  @apply px-4 py-3 border-t border-line text-sm;
 }
+
+/* ─── Status badges ─────────────────────────────────────
+   Active=cyan, Pending=magenta, Revoked/Expired=red,
+   Suspended=orange (warning), Inactive=gray. */
+.badge {
+  @apply id-mono text-[11px] px-2 py-0.5 rounded border inline-flex items-center;
+}
+.badge-active   { @apply badge text-brand-cyan    bg-brand-cyan/10    border-brand-cyan/30; }
+.badge-pending  { @apply badge text-brand-magenta bg-brand-magenta/10 border-brand-magenta/30; }
+.badge-revoked  { @apply badge text-brand-red     bg-brand-red/10     border-brand-red/40; }
+.badge-suspended{ @apply badge text-brand-orange  bg-brand-orange/10  border-brand-orange/30; }
+.badge-inactive { @apply badge text-ink-300       bg-ink-700/30       border-ink-700; }

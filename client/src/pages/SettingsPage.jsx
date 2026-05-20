@@ -77,13 +77,13 @@ export default function SettingsPage() {
     <div className="space-y-6 max-w-3xl">
       <div>
         <h1 className="text-2xl font-bold">Settings</h1>
-        <div className="text-sm text-slate-400">الإعدادات</div>
+        <div className="text-sm text-ink-300">الإعدادات</div>
       </div>
 
       <section className="card space-y-4">
         <div>
           <div className="text-lg font-semibold">Profile · الملف الشخصي</div>
-          <div className="text-xs text-slate-400">
+          <div className="text-xs text-ink-300">
             You can update your display name and phone. Email/login and password are managed by
             an administrator.
           </div>
@@ -118,7 +118,7 @@ export default function SettingsPage() {
             {profileMsg && (
               <span
                 className={
-                  profileMsg.kind === 'ok' ? 'text-emerald-400 text-sm' : 'text-rose-400 text-sm'
+                  profileMsg.kind === 'ok' ? 'text-brand-cyan text-sm' : 'text-brand-red text-sm'
                 }
               >
                 {profileMsg.text}
@@ -132,7 +132,7 @@ export default function SettingsPage() {
         <section className="card space-y-4">
           <div>
             <div className="text-lg font-semibold">Change password · تغيير كلمة المرور</div>
-            <div className="text-xs text-slate-400">
+            <div className="text-xs text-ink-300">
               Only administrators can change their own password. For other employees, ask an admin
               to reset it from the Employees page.
             </div>
@@ -165,7 +165,7 @@ export default function SettingsPage() {
               {pwdMsg && (
                 <span
                   className={
-                    pwdMsg.kind === 'ok' ? 'text-emerald-400 text-sm' : 'text-rose-400 text-sm'
+                    pwdMsg.kind === 'ok' ? 'text-brand-cyan text-sm' : 'text-brand-red text-sm'
                   }
                 >
                   {pwdMsg.text}
@@ -175,9 +175,9 @@ export default function SettingsPage() {
           </form>
         </section>
       ) : (
-        <section className="card border-slate-700/60">
-          <div className="text-sm text-slate-300">
-            <span className="font-semibold text-slate-100">Password & login</span> — managed by an
+        <section className="card border-line/60">
+          <div className="text-sm text-ink-300">
+            <span className="font-semibold text-ink-100">Password & login</span> — managed by an
             administrator. Need a password reset? Ask a Super Admin or Admin.
           </div>
         </section>
@@ -188,7 +188,7 @@ export default function SettingsPage() {
           <div className="flex items-center justify-between">
             <div>
               <div className="text-lg font-semibold">Active sessions · الجلسات النشطة</div>
-              <div className="text-xs text-slate-400">
+              <div className="text-xs text-ink-300">
                 Super Admin can force-terminate any session.
               </div>
             </div>
@@ -196,10 +196,10 @@ export default function SettingsPage() {
               Refresh
             </button>
           </div>
-          {sessErr && <div className="text-rose-400 text-sm">{sessErr}</div>}
+          {sessErr && <div className="text-brand-red text-sm">{sessErr}</div>}
           <div className="overflow-x-auto">
             <table className="w-full">
-              <thead className="bg-slate-900/60">
+              <thead className="bg-page/60">
                 <tr>
                   <th className="table-th">Employee</th>
                   <th className="table-th">IP</th>
@@ -211,20 +211,20 @@ export default function SettingsPage() {
               </thead>
               <tbody>
                 {sessions.map((s) => (
-                  <tr key={s.id} className="hover:bg-slate-800/40">
+                  <tr key={s.id} className="hover:bg-card/40">
                     <td className="table-td">
                       <div className="font-medium">{s.employee_name}</div>
-                      <div className="text-xs text-slate-400">{s.employee_email}</div>
+                      <div className="text-xs text-ink-300">{s.employee_email}</div>
                     </td>
                     <td className="table-td font-mono text-xs">{s.ip_address}</td>
-                    <td className="table-td text-xs text-slate-400 max-w-xs truncate">
+                    <td className="table-td text-xs text-ink-300 max-w-xs truncate">
                       {s.user_agent}
                     </td>
                     <td className="table-td text-xs">{s.created_at}</td>
                     <td className="table-td text-xs">{s.expires_at}</td>
                     <td className="table-td text-right">
                       <button
-                        className="text-rose-400 hover:underline text-sm"
+                        className="text-brand-red hover:underline text-sm"
                         onClick={() => terminate(s.id)}
                       >
                         Force logout
@@ -234,7 +234,7 @@ export default function SettingsPage() {
                 ))}
                 {sessions.length === 0 && (
                   <tr>
-                    <td colSpan="6" className="table-td text-center text-slate-500 py-8">
+                    <td colSpan="6" className="table-td text-center text-ink-500 py-8">
                       No active sessions
                     </td>
                   </tr>
@@ -246,11 +246,11 @@ export default function SettingsPage() {
       )}
 
       {isSuper && (
-        <section className="card border-amber-500/40">
-          <div className="text-amber-400 text-xs uppercase tracking-wider mb-2">
+        <section className="card border-brand-orange/40">
+          <div className="text-brand-orange text-xs uppercase tracking-wider mb-2">
             Super Admin · مدير عام
           </div>
-          <div className="text-sm text-slate-300">
+          <div className="text-sm text-ink-300">
             This account cannot be deleted or suspended. Change your own password above; reset
             another employee&apos;s from the Employees page.
           </div>

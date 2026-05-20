@@ -57,7 +57,7 @@ export default function CustomersPage() {
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-2xl font-bold">Customers</h1>
-          <div className="text-sm text-slate-400">العملاء</div>
+          <div className="text-sm text-ink-300">العملاء</div>
         </div>
         <Link to="/register" className="btn-primary">+ New customer · عميل جديد</Link>
       </div>
@@ -84,11 +84,11 @@ export default function CustomersPage() {
         </div>
       </div>
 
-      {err && <div className="text-rose-400 text-sm">{err}</div>}
+      {err && <div className="text-brand-red text-sm">{err}</div>}
 
       <div className="card p-0 overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-slate-900/60">
+          <thead className="bg-page/60">
             <tr>
               <th className="table-th">Primary Key</th>
               <th className="table-th">Display Code</th>
@@ -102,30 +102,30 @@ export default function CustomersPage() {
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.id} className="hover:bg-slate-800/40">
+              <tr key={r.id} className="hover:bg-card/40">
                 <td className="table-td"><PrimaryId id={r.id} /></td>
                 <td className="table-td"><DisplayCode code={r.display_code} /></td>
                 <td className="table-td">
                   <div className="font-medium">{r.name}</div>
-                  <div className="text-xs text-slate-500">{r.email}</div>
+                  <div className="text-xs text-ink-500">{r.email}</div>
                 </td>
                 <td className="table-td">{r.company}</td>
                 <td className="table-td">{r.country_code}</td>
                 <td className="table-td">{r.product_code}</td>
                 <td className="table-td">
                   <span className={
-                    r.status === 'active' ? 'text-emerald-400' :
-                    r.status === 'pending' ? 'text-amber-400' : 'text-slate-500'
+                    r.status === 'active' ? 'badge-active' :
+                    r.status === 'pending' ? 'badge-pending' : 'badge-inactive'
                   }>{r.status}</span>
                 </td>
                 <td className="table-td text-right space-x-2">
-                  <button className="text-cyan-400 hover:underline text-sm" onClick={() => setEditing({ ...r })}>Edit</button>
-                  <button className="text-rose-400 hover:underline text-sm" onClick={() => softDelete(r.id)}>Disable</button>
+                  <button className="text-brand-cyan hover:underline text-sm" onClick={() => setEditing({ ...r })}>Edit</button>
+                  <button className="text-brand-red hover:underline text-sm" onClick={() => softDelete(r.id)}>Disable</button>
                 </td>
               </tr>
             ))}
             {rows.length === 0 && (
-              <tr><td colSpan="8" className="table-td text-center text-slate-500 py-8">No customers yet · لا يوجد عملاء</td></tr>
+              <tr><td colSpan="8" className="table-td text-center text-ink-500 py-8">No customers yet · لا يوجد عملاء</td></tr>
             )}
           </tbody>
         </table>
@@ -136,8 +136,8 @@ export default function CustomersPage() {
           <div className="card w-full max-w-2xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="text-lg font-semibold mb-2">Edit customer · تعديل عميل</h3>
             <div className="mb-4 space-y-1">
-              <div><span className="text-[10px] text-slate-500 mr-2">Primary</span><PrimaryId id={editing.id} /></div>
-              <div><span className="text-[10px] text-slate-500 mr-2">Current display</span><DisplayCode code={editing.display_code} /></div>
+              <div><span className="text-[10px] text-ink-500 mr-2">Primary</span><PrimaryId id={editing.id} /></div>
+              <div><span className="text-[10px] text-ink-500 mr-2">Current display</span><DisplayCode code={editing.display_code} /></div>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><label className="label">Name</label><input className="input" value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></div>
@@ -162,7 +162,7 @@ export default function CustomersPage() {
                 </select>
               </div>
             </div>
-            <div className="text-[11px] text-amber-400 mt-3">
+            <div className="text-[11px] text-brand-orange mt-3">
               Note · ملاحظة: Primary Key never changes. If country or product changes, Display Code is regenerated.
             </div>
             <div className="flex gap-2 justify-end mt-4">

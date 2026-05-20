@@ -2,16 +2,16 @@ import { useEffect, useState } from 'react';
 import { get } from '../api';
 
 const ACTION_COLORS = {
-  login: 'text-emerald-400',
-  customer: 'text-cyan-400',
-  license: 'text-amber-400',
+  login: 'text-brand-cyan',
+  customer: 'text-brand-cyan',
+  license: 'text-brand-orange',
   apikey: 'text-violet-400',
   verify: 'text-sky-400',
 };
 
 function actionColor(action) {
   const root = action.split('.')[0];
-  return ACTION_COLORS[root] || 'text-slate-300';
+  return ACTION_COLORS[root] || 'text-ink-300';
 }
 
 export default function AuditLogPage() {
@@ -30,7 +30,7 @@ export default function AuditLogPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold">Audit log</h1>
-        <div className="text-sm text-slate-400">سجل التدقيق</div>
+        <div className="text-sm text-ink-300">سجل التدقيق</div>
       </div>
 
       <div className="card">
@@ -49,11 +49,11 @@ export default function AuditLogPage() {
         </div>
       </div>
 
-      {err && <div className="text-rose-400 text-sm">{err}</div>}
+      {err && <div className="text-brand-red text-sm">{err}</div>}
 
       <div className="card p-0 overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-slate-900/60">
+          <thead className="bg-page/60">
             <tr>
               <th className="table-th">Timestamp</th>
               <th className="table-th">Action</th>
@@ -65,17 +65,17 @@ export default function AuditLogPage() {
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.id} className="hover:bg-slate-800/40 align-top">
-                <td className="table-td font-mono text-xs text-slate-400 whitespace-nowrap">{r.timestamp}</td>
+              <tr key={r.id} className="hover:bg-card/40 align-top">
+                <td className="table-td font-mono text-xs text-ink-300 whitespace-nowrap">{r.timestamp}</td>
                 <td className={`table-td font-mono text-xs ${actionColor(r.action)}`}>{r.action}</td>
                 <td className="table-td text-xs">{r.entity_type || '—'}</td>
                 <td className="table-td font-mono text-xs">{r.entity_id || '—'}</td>
-                <td className="table-td font-mono text-xs text-slate-500">{r.ip_address || '—'}</td>
-                <td className="table-td font-mono text-[11px] text-slate-400 max-w-md break-all">{r.details}</td>
+                <td className="table-td font-mono text-xs text-ink-500">{r.ip_address || '—'}</td>
+                <td className="table-td font-mono text-[11px] text-ink-300 max-w-md break-all">{r.details}</td>
               </tr>
             ))}
             {rows.length === 0 && (
-              <tr><td colSpan="6" className="table-td text-center text-slate-500 py-8">No audit entries · لا توجد سجلات</td></tr>
+              <tr><td colSpan="6" className="table-td text-center text-ink-500 py-8">No audit entries · لا توجد سجلات</td></tr>
             )}
           </tbody>
         </table>

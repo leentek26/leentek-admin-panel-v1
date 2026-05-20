@@ -114,7 +114,7 @@ export default function RolesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Roles &amp; Permissions</h1>
-          <div className="text-sm text-slate-400">الأدوار والصلاحيات</div>
+          <div className="text-sm text-ink-300">الأدوار والصلاحيات</div>
         </div>
         {canManage && (
           <button className="btn-primary" onClick={() => setCreating(!creating)}>
@@ -123,7 +123,7 @@ export default function RolesPage() {
         )}
       </div>
 
-      {err && <div className="text-rose-400 text-sm">{err}</div>}
+      {err && <div className="text-brand-red text-sm">{err}</div>}
 
       {creating && (
         <form onSubmit={createRole} className="card grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -172,22 +172,22 @@ export default function RolesPage() {
                 <div className="flex items-center gap-2">
                   <div className="text-lg font-semibold">{r.name}</div>
                   {r.is_system ? (
-                    <span title="System role" className="text-amber-400 text-xs">
+                    <span title="System role" className="text-brand-orange text-xs">
                       🔒 system
                     </span>
                   ) : (
-                    <span className="text-emerald-400 text-xs">custom</span>
+                    <span className="text-brand-cyan text-xs">custom</span>
                   )}
                 </div>
-                <div className="text-xs text-slate-400">{r.name_ar}</div>
+                <div className="text-xs text-ink-300">{r.name_ar}</div>
                 {r.description && (
-                  <div className="text-xs text-slate-500 mt-1">{r.description}</div>
+                  <div className="text-xs text-ink-500 mt-1">{r.description}</div>
                 )}
               </div>
               <div className="text-right">
-                <div className="text-xs text-slate-500">Permissions</div>
-                <div className="text-xl font-mono text-cyan-300">{r.permission_count}</div>
-                <div className="text-[11px] text-slate-500">{r.employee_count} employees</div>
+                <div className="text-xs text-ink-500">Permissions</div>
+                <div className="text-xl font-mono text-brand-cyan">{r.permission_count}</div>
+                <div className="text-[11px] text-ink-500">{r.employee_count} employees</div>
               </div>
             </div>
 
@@ -197,7 +197,7 @@ export default function RolesPage() {
               </button>
               {canManage && !r.is_system && (
                 <button
-                  className="text-rose-400 hover:underline text-sm"
+                  className="text-brand-red hover:underline text-sm"
                   onClick={() => removeRole(r)}
                 >
                   Delete
@@ -206,10 +206,10 @@ export default function RolesPage() {
             </div>
 
             {expandedId === r.id && (
-              <div className="mt-4 border-t border-slate-700 pt-4 space-y-4">
+              <div className="mt-4 border-t border-line pt-4 space-y-4">
                 {Object.entries(permsByCategory).map(([cat, group]) => (
                   <div key={cat}>
-                    <div className="text-xs uppercase tracking-wider text-slate-400 mb-2">
+                    <div className="text-xs uppercase tracking-wider text-ink-300 mb-2">
                       {cat} · {group.label_ar}
                     </div>
                     <div className="grid grid-cols-1 gap-1.5">
@@ -220,7 +220,7 @@ export default function RolesPage() {
                         return (
                           <label
                             key={p.id}
-                            className="flex items-center gap-2 text-sm cursor-pointer hover:bg-slate-800/40 px-2 py-1 rounded"
+                            className="flex items-center gap-2 text-sm cursor-pointer hover:bg-card/40 px-2 py-1 rounded"
                           >
                             <input
                               type="checkbox"
@@ -229,7 +229,7 @@ export default function RolesPage() {
                               onChange={() => togglePerm(r.id, p.id)}
                             />
                             <span className="flex-1">{p.name}</span>
-                            <span className="text-xs text-slate-500">{p.name_ar}</span>
+                            <span className="text-xs text-ink-500">{p.name_ar}</span>
                           </label>
                         );
                       })}
@@ -259,7 +259,7 @@ export default function RolesPage() {
                   </div>
                 )}
                 {r.id === 'role-superadmin' && (
-                  <div className="text-xs text-amber-400">
+                  <div className="text-xs text-brand-orange">
                     Super Admin always has every permission — not editable.
                   </div>
                 )}
