@@ -28,6 +28,7 @@ export default function EmployeesPage() {
   const [busy, setBusy] = useState(false);
   const [resetForId, setResetForId] = useState(null);
   const [resetPwd, setResetPwd] = useState('');
+  const [showInactive, setShowInactive] = useState(false);
 
   const canCreate = hasPermission('employees.create');
   const canEdit = hasPermission('employees.edit');
@@ -137,11 +138,21 @@ export default function EmployeesPage() {
           <h1 className="text-2xl font-bold">Employees</h1>
           <div className="text-sm text-slate-400">الموظفون</div>
         </div>
-        {canCreate && (
-          <button className="btn-primary" onClick={startNew}>
-            + Add employee · إضافة
-          </button>
-        )}
+        <div className="flex items-center gap-4">
+          <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={showInactive}
+              onChange={(e) => setShowInactive(e.target.checked)}
+            />
+            Show inactive · إظهار المحذوفين
+          </label>
+          {canCreate && (
+            <button className="btn-primary" onClick={startNew}>
+              + Add employee · إضافة
+            </button>
+          )}
+        </div>
       </div>
 
       {err && <div className="text-rose-400 text-sm">{err}</div>}
@@ -277,7 +288,7 @@ export default function EmployeesPage() {
             </tr>
           </thead>
           <tbody>
-            {rows.map((r) => (
+            {(showInactive ? rows : rows.filter((r) => r.status !== 'inactive')).map((r) => (
               <tr key={r.id} className="hover:bg-slate-800/40">
                 <td className="table-td font-mono text-cyan-300">{r.employee_code}</td>
                 <td className="table-td">{r.name}</td>
@@ -321,21 +332,25 @@ export default function EmployeesPage() {
                           Activate
                         </button>
                       )}
-                      <button
-                        className="text-rose-400 hover:underline text-sm"
-                        onClick={() => remove(r)}
-                      >
-                        Delete
-                      </button>
+                      {r.status !== 'inactive' && (
+                        <button
+                          className="text-rose-400 hover:underline text-sm"
+                          onClick={() => remove(r)}
+                        >
+                          Delete
+                        </button>
+                      )}
                     </>
                   )}
                 </td>
               </tr>
             ))}
-            {rows.length === 0 && (
+            {(showInactive ? rows : rows.filter((r) => r.status !== 'inactive')).length === 0 && (
               <tr>
                 <td colSpan="7" className="table-td text-center text-slate-500 py-8">
-                  No employees yet · لا يوجد موظفون
+                  {rows.length === 0
+                    ? 'No employees yet · لا يوجد موظفون'
+                    : 'No active employees — toggle "Show inactive" to see deleted ones'}
                 </td>
               </tr>
             )}
