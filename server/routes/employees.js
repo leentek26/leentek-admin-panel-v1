@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt');
 const Joi = require('joi');
 const db = require('../db');
 const { requireAuth } = require('../middleware/auth');
-const { checkPermission } = require('../middleware/checkPermission');
+const { checkPermission, requireAdminRole } = require('../middleware/checkPermission');
 const { audit } = require('../middleware/audit');
 
 const router = express.Router();
@@ -230,27 +230,38 @@ router.post('/:id/activate', checkPermission('employees.delete'), (req, res) => 
 });
 
 // ─── HARD DELETE ─────────────────────────────────────
-router.delete('/:id', checkPermission('employees.delete'), (req, res) => {
-  const existing = db
-    .prepare('SELECT id, role_id, employee_code FROM employees WHERE id = ?')
-    .get(req.params.id);
+// Restrictions:
+//   • requires Admin / Super Admin role (on top of employees.delete perm)
+//   • cannot delete yourself
+//   • cannot delete anyone at your level or above (so Super Admin is always protected)
+// Audit row is written first, inside the same transaction, so the record
+// captures the full snapshot even if a later step fails and rolls back.
+router.delete('/:id', requireAdminRole, checkPermission('employees.delete'), (req, res) => {
+  const existing = db.prepare('SELECT * FROM employees WHERE id = ?').get(req.params.id);
   if (!existing) return res.status(404).json({ error: 'not found' });
   if (existing.id === req.user.sub) return res.status(403).json({ error: 'cannot delete yourself' });
   if (roleLevelOf(existing.role_id) >= req.user.role_level) {
     return res.status(403).json({ error: 'cannot delete a user at your level or above' });
   }
 
-  // Sessions have FK ON DELETE CASCADE so they'd go automatically, but be explicit.
+  // employee_sessions has FK ON DELETE CASCADE — explicit deletes kept for clarity.
   const trx = db.transaction(() => {
+    audit(req, 'employee.delete', 'employee', existing.id, {
+      hard_delete: true,
+      employee_code: existing.employee_code,
+      name: existing.name,
+      email: existing.email,
+      phone: existing.phone,
+      role_id: existing.role_id,
+      department: existing.department,
+      status_before: existing.status,
+      created_at: existing.created_at,
+    });
     db.prepare('DELETE FROM employee_sessions WHERE employee_id = ?').run(existing.id);
     db.prepare('DELETE FROM employees WHERE id = ?').run(existing.id);
   });
   trx();
 
-  audit(req, 'employee.delete', 'employee', existing.id, {
-    hard_delete: true,
-    employee_code: existing.employee_code,
-  });
   res.json({ ok: true });
 });
 

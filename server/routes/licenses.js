@@ -2,7 +2,7 @@ const express = require('express');
 const Joi = require('joi');
 const db = require('../db');
 const { requireAuth } = require('../middleware/auth');
-const { checkPermission } = require('../middleware/checkPermission');
+const { checkPermission, requireAdminRole } = require('../middleware/checkPermission');
 const { audit } = require('../middleware/audit');
 const { generateLicenseId } = require('../utils/ids');
 const {
@@ -149,6 +149,52 @@ router.post('/:id/revoke', checkPermission('licenses.revoke'), (req, res) => {
   db.prepare(`UPDATE licenses SET status = 'revoked' WHERE id = ?`).run(existing.id);
   audit(req, 'license.revoke', 'license', existing.id, {});
   res.json({ ok: true });
+});
+
+// ─── HARD DELETE ─────────────────────────────────────
+// Single transaction: audit row first (full snapshot), then null out any
+// product_units.license_id pointing here (FK would otherwise block), then
+// remove the licenses row. Requires Admin / Super Admin role.
+router.delete('/:id', requireAdminRole, checkPermission('licenses.revoke'), (req, res) => {
+  const existing = db.prepare('SELECT * FROM licenses WHERE id = ?').get(req.params.id);
+  if (!existing) return res.status(404).json({ error: 'not found' });
+
+  const linkedUnits = db
+    .prepare(
+      `SELECT id, serial_number, serial_short, status
+         FROM product_units WHERE license_id = ?`
+    )
+    .all(existing.id);
+
+  const trx = db.transaction(() => {
+    audit(req, 'license.delete', 'license', existing.id, {
+      hard_delete: true,
+      license_key: existing.license_key,
+      customer_id: existing.customer_id,
+      product_code: existing.product_code,
+      tier: existing.tier,
+      dongle_type: existing.dongle_type,
+      activations: existing.activations,
+      activation_limit: existing.activation_limit,
+      expires_at: existing.expires_at,
+      status_before: existing.status,
+      issued_at: existing.issued_at,
+      detached_units: linkedUnits.map((u) => ({
+        id: u.id,
+        serial_number: u.serial_number,
+        serial_short: u.serial_short,
+        status: u.status,
+      })),
+      detached_unit_count: linkedUnits.length,
+    });
+    if (linkedUnits.length > 0) {
+      db.prepare('UPDATE product_units SET license_id = NULL WHERE license_id = ?').run(existing.id);
+    }
+    db.prepare('DELETE FROM licenses WHERE id = ?').run(existing.id);
+  });
+  trx();
+
+  res.json({ ok: true, license_id: existing.id, detached_unit_count: linkedUnits.length });
 });
 
 // ─── ACTIVATE — increments activations, enforces limit ──

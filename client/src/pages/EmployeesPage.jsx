@@ -1,6 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { get, post, put, del } from '../api';
 import { useAuth } from '../auth.jsx';
+import TableSkeleton from '../components/TableSkeleton.jsx';
+import PageProgress from '../components/PageProgress.jsx';
+import Modal from '../components/Modal.jsx';
+import Spinner from '../components/Spinner.jsx';
+import PhoneInput from '../components/PhoneInput.jsx';
+
+const ADMIN_ROLE_IDS = new Set(['role-superadmin', 'role-admin']);
 
 const STATUS_BADGE = {
   active: 'badge-active',
@@ -58,6 +65,11 @@ export default function EmployeesPage() {
   const [editing, setEditing] = useState(null); // null | 'new' | id
   const [form, setForm] = useState(emptyForm);
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [actingId, setActingId] = useState(null); // row id being suspend/activated
+  const [resetBusy, setResetBusy] = useState(false);
+  const [deleteBusy, setDeleteBusy] = useState(false);
 
   // Reset-password flow
   const [resetForId, setResetForId] = useState(null);
@@ -70,11 +82,16 @@ export default function EmployeesPage() {
 
   const canCreate = hasPermission('employees.create');
   const canEdit = hasPermission('employees.edit');
-  const canDelete = hasPermission('employees.delete');
+  // Hard delete is restricted to Admin / Super Admin (mirrors server requireAdminRole)
+  const canDelete =
+    ADMIN_ROLE_IDS.has(user?.role_id) && hasPermission('employees.delete');
+  const canSuspend = hasPermission('employees.delete');
   const myLevel = user?.role_level ?? 0;
 
-  async function load() {
+  async function load({ initial = false } = {}) {
     setErr('');
+    if (initial) setLoading(true);
+    else setRefreshing(true);
     try {
       const [e, r, p] = await Promise.all([
         get('/api/employees'),
@@ -86,10 +103,13 @@ export default function EmployeesPage() {
       setAllPerms(p);
     } catch (e) {
       setErr(e.message);
+    } finally {
+      if (initial) setLoading(false);
+      else setRefreshing(false);
     }
   }
   useEffect(() => {
-    load();
+    load({ initial: true });
   }, []);
 
   // Roles the current user is allowed to assign (strictly below their level).
@@ -117,7 +137,6 @@ export default function EmployeesPage() {
 
   const selectedRolePerms = form.role_id ? rolePermsCache[form.role_id] : null;
 
-  // Group selected role permissions by category for the summary card
   const permsByCategory = useMemo(() => {
     if (!selectedRolePerms) return {};
     const out = {};
@@ -187,30 +206,39 @@ export default function EmployeesPage() {
   }
 
   async function suspend(emp) {
+    setActingId(emp.id);
     try {
       await post(`/api/employees/${emp.id}/suspend`, {});
-      load();
+      await load();
     } catch (e) {
       alert(e.message);
+    } finally {
+      setActingId(null);
     }
   }
   async function activate(emp) {
+    setActingId(emp.id);
     try {
       await post(`/api/employees/${emp.id}/activate`, {});
-      load();
+      await load();
     } catch (e) {
       alert(e.message);
+    } finally {
+      setActingId(null);
     }
   }
   async function confirmDelete() {
     if (!deleteTarget) return;
+    setDeleteBusy(true);
     try {
       await del('/api/employees/' + deleteTarget.id);
       setDeleteTarget(null);
-      load();
+      await load();
     } catch (e) {
       alert(e.message);
       setDeleteTarget(null);
+    } finally {
+      setDeleteBusy(false);
     }
   }
 
@@ -226,6 +254,7 @@ export default function EmployeesPage() {
       alert(pe);
       return;
     }
+    setResetBusy(true);
     try {
       await post(`/api/employees/${resetForId}/reset-password`, {
         new_password: resetPwd,
@@ -239,9 +268,11 @@ export default function EmployeesPage() {
       setResetForId(null);
       setResetPwd('');
       setResetConfirm('');
-      load();
+      await load();
     } catch (e) {
       alert(e.message);
+    } finally {
+      setResetBusy(false);
     }
   }
 
@@ -254,7 +285,7 @@ export default function EmployeesPage() {
     return canEdit && canActOn(emp);
   }
   function canSuspendRow(emp) {
-    return canDelete && canActOn(emp) && emp.id !== user?.id;
+    return canSuspend && canActOn(emp) && emp.id !== user?.id;
   }
   function canDeleteRow(emp) {
     return canDelete && canActOn(emp) && emp.id !== user?.id;
@@ -265,14 +296,12 @@ export default function EmployeesPage() {
 
   return (
     <div className="space-y-6">
+      <PageProgress active={refreshing} />
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Employees</h1>
-          <div className="text-sm text-ink-300">الموظفون</div>
-        </div>
+        <h1 className="text-2xl font-bold">Employees</h1>
         {canCreate && (
           <button className="btn-primary" onClick={startNew}>
-            + Add employee · إضافة
+            + Add employee
           </button>
         )}
       </div>
@@ -284,13 +313,23 @@ export default function EmployeesPage() {
       )}
 
       {editing && (
-        <form onSubmit={save} className="card grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="md:col-span-2 text-sm font-semibold text-ink-100">
-            {editing === 'new' ? 'New employee · موظف جديد' : 'Edit employee · تعديل'}
+        <form onSubmit={save} className="card grid grid-cols-1 md:grid-cols-2 gap-4 relative">
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={cancel}
+            className="absolute top-3 right-3 h-8 w-8 inline-flex items-center justify-center rounded-md text-ink-300 hover:text-brand-orange hover:bg-cardAlt transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M3 3l10 10M13 3L3 13" />
+            </svg>
+          </button>
+          <div className="md:col-span-2 text-sm font-semibold text-ink-100 pr-8">
+            {editing === 'new' ? 'New employee' : 'Edit employee'}
           </div>
 
           <div>
-            <label className="label">Full name · الاسم الكامل *</label>
+            <label className="label">Full name *</label>
             <input
               className="input"
               required
@@ -299,7 +338,7 @@ export default function EmployeesPage() {
             />
           </div>
           <div>
-            <label className="label">Email / login · البريد *</label>
+            <label className="label">Email / login *</label>
             <input
               className="input"
               type="email"
@@ -309,15 +348,14 @@ export default function EmployeesPage() {
             />
           </div>
           <div>
-            <label className="label">Phone · الهاتف</label>
-            <input
-              className="input"
+            <label className="label">Phone</label>
+            <PhoneInput
               value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              onChange={(v) => setForm({ ...form, phone: v })}
             />
           </div>
           <div>
-            <label className="label">Department · القسم</label>
+            <label className="label">Department</label>
             <input
               className="input"
               value={form.department}
@@ -326,7 +364,7 @@ export default function EmployeesPage() {
           </div>
 
           <div className="md:col-span-2">
-            <label className="label">Role · الدور *</label>
+            <label className="label">Role *</label>
             <select
               className="input"
               required
@@ -336,7 +374,7 @@ export default function EmployeesPage() {
               <option value="">— select role —</option>
               {assignableRoles.map((r) => (
                 <option key={r.id} value={r.id}>
-                  {r.name} · {r.name_ar}  (level {r.role_level})
+                  {r.name} (level {r.role_level})
                 </option>
               ))}
             </select>
@@ -357,12 +395,11 @@ export default function EmployeesPage() {
                   {Object.entries(permsByCategory).map(([cat, group]) => (
                     <div key={cat}>
                       <div className="text-xs text-brand-cyan mt-1">
-                        {cat} · {group.label_ar}
+                        {cat}
                       </div>
                       {group.items.map((p) => (
-                        <div key={p.id} className="text-sm text-ink-300 flex justify-between pl-2">
-                          <span>{p.name}</span>
-                          <span className="text-xs text-ink-500">{p.name_ar}</span>
+                        <div key={p.id} className="text-sm text-ink-300 pl-2">
+                          {p.name}
                         </div>
                       ))}
                     </div>
@@ -376,7 +413,7 @@ export default function EmployeesPage() {
             <>
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <span className="label !mb-0">Password · كلمة المرور * (min 8, Aa1)</span>
+                  <span className="label !mb-0">Password * (min 8, Aa1)</span>
                   <button
                     type="button"
                     className="text-brand-cyan hover:underline text-[11px]"
@@ -397,7 +434,7 @@ export default function EmployeesPage() {
                 />
               </div>
               <div>
-                <label className="label">Confirm password · تأكيد</label>
+                <label className="label">Confirm password</label>
                 <input
                   className="input font-mono"
                   type="text"
@@ -411,7 +448,7 @@ export default function EmployeesPage() {
 
           <div className="md:col-span-2 flex items-center gap-6">
             <span className="text-xs uppercase tracking-wider text-ink-300">
-              Status · الحالة
+              Status
             </span>
             {['active', 'suspended'].map((s) => (
               <label key={s} className="flex items-center gap-2 text-sm cursor-pointer">
@@ -429,7 +466,7 @@ export default function EmployeesPage() {
 
           <div className="md:col-span-2 flex gap-3">
             <button className="btn-primary" type="submit" disabled={busy}>
-              {busy ? 'Saving…' : editing === 'new' ? 'Create employee' : 'Save changes'}
+              {busy ? <Spinner /> : editing === 'new' ? 'Create employee' : 'Save changes'}
             </button>
             <button className="btn-secondary" type="button" onClick={cancel}>
               Cancel
@@ -439,9 +476,23 @@ export default function EmployeesPage() {
       )}
 
       {resetForId && (
-        <form onSubmit={doReset} className="card border-brand-orange/40 space-y-3">
-          <div className="text-sm font-semibold text-brand-orange">
-            Reset password · إعادة تعيين كلمة المرور
+        <form onSubmit={doReset} className="card border-brand-orange/40 space-y-3 relative">
+          <button
+            type="button"
+            aria-label="Close"
+            onClick={() => {
+              setResetForId(null);
+              setResetPwd('');
+              setResetConfirm('');
+            }}
+            className="absolute top-3 right-3 h-8 w-8 inline-flex items-center justify-center rounded-md text-ink-300 hover:text-brand-orange hover:bg-cardAlt transition-colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M3 3l10 10M13 3L3 13" />
+            </svg>
+          </button>
+          <div className="text-sm font-semibold text-brand-orange pr-8">
+            Reset password
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
@@ -479,8 +530,8 @@ export default function EmployeesPage() {
             </div>
           </div>
           <div className="flex gap-3">
-            <button className="btn-primary" type="submit">
-              Reset password
+            <button className="btn-primary" type="submit" disabled={resetBusy}>
+              {resetBusy ? <Spinner /> : 'Reset password'}
             </button>
             <button
               className="btn-secondary"
@@ -511,110 +562,120 @@ export default function EmployeesPage() {
               <th className="table-th text-right">Actions</th>
             </tr>
           </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id} className="hover:bg-card/40">
-                <td className="table-td font-mono text-brand-cyan">{r.employee_code}</td>
-                <td className="table-td">{r.name}</td>
-                <td className="table-td text-ink-300">{r.email}</td>
-                <td className="table-td">
-                  <span
-                    className={`id-mono text-[11px] px-2 py-0.5 rounded border ${
-                      ROLE_BADGE_TONE[r.role_id] || 'bg-ink-300/10 border-line text-ink-300'
-                    }`}
-                  >
-                    {r.role_name || r.role_id}
-                  </span>
-                </td>
-                <td className="table-td text-ink-300 text-sm">{r.department || '—'}</td>
-                <td className="table-td"><span className={STATUS_BADGE[r.status] || 'badge-inactive'}>{r.status}</span></td>
-                <td className="table-td text-xs text-ink-300">{r.last_login || '—'}</td>
-                <td className="table-td text-right space-x-3 whitespace-nowrap">
-                  {canEditRow(r) && (
-                    <button
-                      className="text-brand-cyan hover:underline text-sm"
-                      onClick={() => startEdit(r)}
+          {loading ? (
+            <TableSkeleton columns={8} rows={6} />
+          ) : (
+            <tbody className="row-stripe">
+              {rows.map((r) => (
+                <tr key={r.id} className={`status-${r.status}`}>
+                  <td className="table-td font-mono text-brand-cyan">{r.employee_code}</td>
+                  <td className="table-td">{r.name}</td>
+                  <td className="table-td text-ink-300">{r.email}</td>
+                  <td className="table-td">
+                    <span
+                      className={`id-mono text-[11px] px-2 py-0.5 rounded border ${
+                        ROLE_BADGE_TONE[r.role_id] || 'bg-ink-300/10 border-line text-ink-300'
+                      }`}
                     >
-                      Edit
-                    </button>
-                  )}
-                  {canResetRow(r) && (
-                    <button
-                      className="text-brand-orange hover:underline text-sm"
-                      onClick={() => startReset(r)}
-                    >
-                      Reset pw
-                    </button>
-                  )}
-                  {canSuspendRow(r) &&
-                    (r.status === 'active' ? (
-                      <button
-                        className="text-brand-orange hover:underline text-sm"
-                        onClick={() => suspend(r)}
-                      >
-                        Suspend
-                      </button>
-                    ) : (
+                      {r.role_name || r.role_id}
+                    </span>
+                  </td>
+                  <td className="table-td text-ink-300 text-sm">{r.department || '—'}</td>
+                  <td className="table-td"><span className={STATUS_BADGE[r.status] || 'badge-inactive'}>{r.status}</span></td>
+                  <td className="table-td text-xs text-ink-300">{r.last_login || '—'}</td>
+                  <td className="table-td text-right space-x-3 whitespace-nowrap">
+                    {canEditRow(r) && (
                       <button
                         className="text-brand-cyan hover:underline text-sm"
-                        onClick={() => activate(r)}
+                        onClick={() => startEdit(r)}
                       >
-                        Activate
+                        Edit
                       </button>
-                    ))}
-                  {canDeleteRow(r) && (
-                    <button
-                      className="text-brand-red hover:underline text-sm"
-                      onClick={() => setDeleteTarget(r)}
-                    >
-                      Delete
-                    </button>
-                  )}
-                </td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan="8" className="table-td text-center text-ink-500 py-8">
-                  No employees yet · لا يوجد موظفون
-                </td>
-              </tr>
-            )}
-          </tbody>
+                    )}
+                    {canResetRow(r) && (
+                      <button
+                        className="text-brand-orange hover:underline text-sm"
+                        onClick={() => startReset(r)}
+                      >
+                        Reset pw
+                      </button>
+                    )}
+                    {canSuspendRow(r) &&
+                      (r.status === 'active' ? (
+                        <button
+                          className="text-brand-orange hover:underline text-sm"
+                          onClick={() => suspend(r)}
+                          disabled={actingId === r.id}
+                        >
+                          {actingId === r.id ? <Spinner /> : 'Suspend'}
+                        </button>
+                      ) : (
+                        <button
+                          className="text-status-green hover:underline text-sm"
+                          onClick={() => activate(r)}
+                          disabled={actingId === r.id}
+                        >
+                          {actingId === r.id ? <Spinner /> : 'Activate'}
+                        </button>
+                      ))}
+                    {canDeleteRow(r) && (
+                      <button
+                        className="text-brand-red hover:underline text-sm"
+                        onClick={() => setDeleteTarget(r)}
+                      >
+                        Delete
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan="8" className="table-td text-center text-ink-500 py-8">
+                    No employees yet
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          )}
         </table>
       </div>
 
-      {deleteTarget && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="card border-brand-red/40 max-w-md w-full">
-            <div className="text-lg font-semibold text-brand-red mb-2">
-              Permanently delete employee?
+      <Modal
+        open={!!deleteTarget}
+        onClose={() => !deleteBusy && setDeleteTarget(null)}
+        maxWidth="max-w-md"
+        className="border-brand-red/40"
+        closeOnBackdrop={!deleteBusy}
+        title={deleteTarget ? 'Delete employee' : ''}
+      >
+        {deleteTarget && (
+          <>
+            <div className="text-sm text-ink-100 leading-relaxed">
+              Are you sure you want to delete{' '}
+              <span className="font-semibold">{deleteTarget.name}</span>?
             </div>
-            <div className="text-sm text-ink-300 mb-2">
-              Are you sure you want to permanently delete{' '}
-              <span className="font-semibold text-ink-100">{deleteTarget.name}</span>{' '}
-              <span className="font-mono text-brand-cyan">({deleteTarget.employee_code})</span>?
-            </div>
-            <div className="text-xs text-brand-orange mb-4">
-              This is a hard delete — the record is removed from the database and cannot be
-              recovered. All sessions for this employee will be terminated.
-            </div>
-            <div className="flex gap-3 justify-end">
-              <button className="btn-secondary" onClick={() => setDeleteTarget(null)}>
+            <div className="flex gap-3 justify-end mt-5">
+              <button className="btn-secondary" onClick={() => setDeleteTarget(null)} disabled={deleteBusy}>
                 Cancel
               </button>
-              <button className="btn-danger" onClick={confirmDelete}>
-                Yes, delete permanently
+              <button className="btn-danger" onClick={confirmDelete} disabled={deleteBusy} autoFocus>
+                {deleteBusy ? <Spinner /> : 'Delete'}
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
 
-      {resetReveal && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="card border-brand-orange/40 max-w-md w-full">
-            <div className="text-lg font-semibold text-brand-orange mb-2">
+      <Modal
+        open={!!resetReveal}
+        onClose={() => setResetReveal(null)}
+        maxWidth="max-w-md"
+        className="border-brand-orange/40"
+      >
+        {resetReveal && (
+          <>
+            <div className="text-lg font-semibold text-brand-orange mb-2 pr-8">
               Password reset · share it now
             </div>
             <div className="text-sm text-ink-300 mb-3">
@@ -639,9 +700,9 @@ export default function EmployeesPage() {
                 I have saved it
               </button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
     </div>
   );
 }

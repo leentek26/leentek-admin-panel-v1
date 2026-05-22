@@ -2,7 +2,7 @@ const express = require('express');
 const Joi = require('joi');
 const db = require('../db');
 const { requireAuth } = require('../middleware/auth');
-const { checkPermission } = require('../middleware/checkPermission');
+const { checkPermission, requireAdminRole } = require('../middleware/checkPermission');
 const { audit } = require('../middleware/audit');
 const { generatePrimaryId } = require('../utils/ids');
 const {
@@ -13,7 +13,7 @@ const {
 const router = express.Router();
 
 const PRODUCT_CODES = ['CNC', 'PLC', 'IOT', 'ERP', 'CAD', 'DRV'];
-const STATUSES = ['active', 'pending', 'inactive'];
+const STATUSES = ['active', 'pending', 'inactive', 'deleted'];
 
 const createSchema = Joi.object({
   name: Joi.string().min(1).max(120).required(),
@@ -198,17 +198,84 @@ router.put('/:id', checkPermission('customers.edit'), (req, res) => {
   res.json(db.prepare('SELECT * FROM customers WHERE id = ?').get(existing.id));
 });
 
-// ─── SOFT DELETE ──────────────────────────────────────
-router.delete('/:id', checkPermission('customers.delete'), (req, res) => {
+// ─── HARD DELETE ────────────────────────────────────────────────────────
+// Single transaction, in order:
+//   1. audit_log row written FIRST (full snapshot of blast radius)
+//   2. product_units unassigned (customer_id → NULL, license_id → NULL, status → 'in_stock')
+//   3. licenses deleted (FK customer_id is NOT NULL, so they can't survive)
+//   4. customer row deleted
+// Units must be unassigned BEFORE licenses are deleted so the
+// product_units.license_id FK doesn't block the license delete.
+router.delete('/:id', requireAdminRole, checkPermission('customers.delete'), (req, res) => {
   const existing = db
-    .prepare('SELECT id FROM customers WHERE id = ? OR display_code = ?')
+    .prepare('SELECT * FROM customers WHERE id = ? OR display_code = ?')
     .get(req.params.id, req.params.id);
   if (!existing) return res.status(404).json({ error: 'not found' });
-  db.prepare(
-    `UPDATE customers SET status = 'inactive', updated_at = CURRENT_TIMESTAMP WHERE id = ?`
-  ).run(existing.id);
-  audit(req, 'customer.delete', 'customer', existing.id, {});
-  res.json({ ok: true });
+
+  // Snapshot everything we're about to destroy so the audit row captures it.
+  const licenseRows = db
+    .prepare(
+      `SELECT id, license_key, product_code, tier, status
+         FROM licenses WHERE customer_id = ?`
+    )
+    .all(existing.id);
+  const unitRows = db
+    .prepare(
+      `SELECT id, serial_number, serial_short, status, license_id
+         FROM product_units WHERE customer_id = ?`
+    )
+    .all(existing.id);
+
+  const unassignUnit = db.prepare(
+    `UPDATE product_units
+        SET customer_id = NULL,
+            license_id = NULL,
+            status = 'in_stock'
+      WHERE id = ?`
+  );
+  const deleteLicense = db.prepare(`DELETE FROM licenses WHERE id = ?`);
+  const deleteCustomer = db.prepare(`DELETE FROM customers WHERE id = ?`);
+
+  const trx = db.transaction(() => {
+    audit(req, 'customer.delete', 'customer', existing.id, {
+      hard_delete: true,
+      display_code: existing.display_code,
+      name: existing.name,
+      company: existing.company,
+      email: existing.email,
+      phone: existing.phone,
+      country_code: existing.country_code,
+      product_code: existing.product_code,
+      status_before: existing.status,
+      revoked_licenses: licenseRows.map((l) => ({
+        id: l.id,
+        license_key: l.license_key,
+        product_code: l.product_code,
+        tier: l.tier,
+        status_before: l.status,
+      })),
+      unassigned_units: unitRows.map((u) => ({
+        id: u.id,
+        serial_number: u.serial_number,
+        serial_short: u.serial_short,
+        status_before: u.status,
+        status_after: 'in_stock',
+      })),
+      revoked_count: licenseRows.length,
+      unassigned_count: unitRows.length,
+    });
+    for (const u of unitRows) unassignUnit.run(u.id);
+    for (const l of licenseRows) deleteLicense.run(l.id);
+    deleteCustomer.run(existing.id);
+  });
+  trx();
+
+  res.json({
+    ok: true,
+    customer_id: existing.id,
+    revoked_license_ids: licenseRows.map((l) => l.id),
+    unassigned_unit_serials: unitRows.map((u) => u.serial_number),
+  });
 });
 
 module.exports = router;
